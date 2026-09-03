@@ -118,7 +118,7 @@ export default function App() {
   if (!unlocked) {
     return <main className="gate">
       <section className="invite-card">
-        <p className="kicker">2nd Annual Karaoke Jam</p>
+        <p className="kicker">Karaoke Jam</p>
         <h1><span>BABY,</span><em>it's cold</em><strong>INSIDE</strong></h1>
         <div className="script">A Frosted Jam</div>
         <p className="date">Saturday · December 12, 2026 · 6:00 PM</p>
@@ -150,8 +150,8 @@ export default function App() {
       <div className="jam-hero">
         <div className="jam-glow jam-glow-one" />
         <div className="jam-glow jam-glow-two" />
-        <p className="jam-kicker">Baby, It's Cold Inside · 2nd Annual Karaoke Jam</p>
-        <h2><span>Turn Up the Music.</span><strong>Bring On the Frost.</strong></h2>
+        <p className="jam-kicker">A Frosted Jam</p>
+        <h2><span>Baby, It's Cold Inside.</span><strong>Bring On the Frost.</strong></h2>
         <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — frosted, playful and with a few surprises mixed in.</p>
         <div className="jam-actions"><button className="primary big" onClick={() => setPage('rsvp')}>I'm Coming</button><button className="secondary big" onClick={() => setPage('coming')}>See Who's In</button></div>
         <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
