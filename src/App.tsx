@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react'
 
 type Rsvp = 'coming' | 'maybe' | 'declined'
+type Page = 'jam' | 'rsvp' | 'coming' | 'ideas'
 type Guest = {
   id: string
   name: string
@@ -22,14 +23,21 @@ const starterGuests: Guest[] = [
     partySize: 2,
     host: true,
     rsvp: 'coming',
-    category: 'Main · Appetizer · Side',
-    bringing: 'Chicken meatballs · an appetizer · baked potatoes',
-    frosting: 'Chicken Meatballs with Frosted Blueberry Kiss',
+    category: 'Hosts',
+    bringing: 'Chicken Meatballs with Frosted Blueberry Kiss · Frost-Your-Own Potato Station · Blue Blizzard Crostinis',
   },
+]
+
+const navItems: { id: Page; label: string; icon: string }[] = [
+  { id: 'jam', label: 'The Jam', icon: '❄' },
+  { id: 'rsvp', label: 'RSVP', icon: '✦' },
+  { id: 'coming', label: "Who's Coming", icon: '♬' },
+  { id: 'ideas', label: 'Frosty Ideas', icon: '✧' },
 ]
 
 export default function App() {
   const [unlocked, setUnlocked] = useState(false)
+  const [page, setPage] = useState<Page>('jam')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [guests, setGuests] = useState<Guest[]>(starterGuests)
@@ -55,6 +63,7 @@ export default function App() {
       setError('That code is still frozen. Try again.')
       return
     }
+    setError('')
     setUnlocked(true)
   }
 
@@ -77,12 +86,13 @@ export default function App() {
     setCategory('')
     setBringing('')
     setFrosting('')
+    setPage('coming')
   }
 
   if (!unlocked) {
     return <main className="gate">
       <section className="invite-card">
-        <div className="eyebrow">2ND ANNUAL KARAOKE JAM</div>
+        <div className="eyebrow">2nd Annual Karaoke Jam</div>
         <h1><span>BABY,</span><em>it's cold</em><strong>INSIDE</strong></h1>
         <div className="script">A Frosted Jam</div>
         <p className="date">Saturday · December 12, 2026 · 6:00 PM</p>
@@ -103,35 +113,57 @@ export default function App() {
   return <main className="app">
     <header className="hero">
       <div>
-        <div className="eyebrow">BABY, IT'S COLD INSIDE</div>
+        <div className="eyebrow">Baby, It's Cold Inside</div>
         <h2>A Frosted Jam</h2>
         <p>Saturday, December 12 · 6:00 PM · Hosted by Nancy & Rick</p>
       </div>
       <div className="count"><b>{coming}</b><span>coming</span></div>
     </header>
 
-    <section className="welcome">
-      <h3>Bring your own kind of frosty.</h3>
-      <p>Frost the food, the name, the presentation, yourself — or none of the above. Creativity is encouraged, never required. Just bring whatever feels fun.</p>
-    </section>
+    <nav className="nav" aria-label="Party pages">
+      {navItems.map(item => <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => setPage(item.id)}>
+        <span>{item.icon}</span>{item.label}
+      </button>)}
+    </nav>
 
-    <section className="panel">
-      <div className="section-title"><span>RSVP + FEAST</span><h3>Tell us you're coming</h3></div>
+    {page === 'jam' && <>
+      <section className="welcome">
+        <div className="big-icon">❄</div>
+        <h3>Bring Your Own Kind of Frosty</h3>
+        <p>Frost the food, the name, the presentation, yourself — or none of the above. Creativity is encouraged, never required. Just bring whatever feels fun.</p>
+      </section>
+
+      <section className="panel host-menu">
+        <div className="section-title"><span>From Your Hosts</span><h3>What Nancy & Rick Are Serving</h3></div>
+        <div className="menu-grid">
+          <article><div className="food-icon">✦</div><h4>Chicken Meatballs with Frosted Blueberry Kiss</h4><p>Savoury chicken meatballs with their frosty blueberry finish.</p></article>
+          <article><div className="food-icon">❄</div><h4>Frost-Your-Own Potato Station</h4><p>Warm baked potatoes ready for everyone to frost with their favourite toppings.</p></article>
+          <article><div className="food-icon">✧</div><h4>Blue Blizzard Crostinis</h4><p>Crisp crostinis with a frosty blue cheese topping.</p></article>
+        </div>
+      </section>
+
+      <section className="action-grid">
+        <button onClick={() => setPage('rsvp')}><span>✦</span><b>RSVP</b><small>Tell us if you're coming and what you might bring.</small></button>
+        <button onClick={() => setPage('coming')}><span>♬</span><b>Who's Coming</b><small>See which frosty friends are joining the Jam.</small></button>
+        <button onClick={() => setPage('ideas')}><span>❄</span><b>Frosty Ideas</b><small>Need inspiration? Food, names, presentation and more.</small></button>
+      </section>
+    </>}
+
+    {page === 'rsvp' && <section className="panel">
+      <div className="section-title"><span>RSVP + Feast</span><h3>Tell Us You're Coming</h3></div>
       <form onSubmit={save} className="form">
         <div className="two">
           <label>Your name<input value={name} onChange={e => setName(e.target.value)} required /></label>
           <label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" /></label>
         </div>
-
         <div>
           <label>Are you coming?</label>
           <div className="choices">
             <button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button>
             <button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button>
-            <button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't make it</button>
+            <button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button>
           </div>
         </div>
-
         {rsvp !== 'declined' && <>
           <div className="two">
             <label>What kind of contribution?
@@ -148,26 +180,51 @@ export default function App() {
         </>}
         <button className="primary">Save My Spot</button>
       </form>
-    </section>
+    </section>}
 
-    <section className="panel">
+    {page === 'coming' && <section className="panel">
       <div className="section-heading">
-        <div className="section-title"><span>WHO'S GETTING FROSTED?</span><h3>The guest list</h3></div>
+        <div className="section-title"><span>Who's Getting Frosted?</span><h3>Who's Coming</h3></div>
         <p>{coming} coming · {maybe} maybe</p>
       </div>
       <div className="guest-grid">
         {guests.filter(g => g.rsvp !== 'declined').map(g => <article className="guest" key={g.id}>
-          <div className="guest-head">
-            <h4>{g.name}{g.plusOne ? ` & ${g.plusOne}` : ''} {g.host && <span className="host-badge">HOSTS</span>}</h4>
-            <b>{g.rsvp === 'coming' ? 'Coming' : 'Maybe'}</b>
-          </div>
+          <div className="guest-head"><h4>{g.name}{g.plusOne ? ` & ${g.plusOne}` : ''} {g.host && <span className="host-badge">Hosts</span>}</h4><b>{g.rsvp === 'coming' ? 'Coming' : 'Maybe'}</b></div>
           {g.category && <span className="category">{g.category}</span>}
           {g.bringing && <p className="bringing">{g.bringing}</p>}
           {g.frosting && <p className="frosting"><strong>Frosty spin:</strong> {g.frosting}</p>}
         </article>)}
       </div>
-    </section>
+    </section>}
 
-    <footer>GOOD FRIENDS ❄ GREAT FOOD ❄ FESTIVE DRINKS ❄ EPIC KARAOKE</footer>
+    {page === 'ideas' && <section className="ideas-page">
+      <div className="ideas-intro">
+        <div className="big-icon">✧</div>
+        <span>Need a Little Inspiration?</span>
+        <h3>Frosty Ideas</h3>
+        <p>There are no rules. Give something a wintry name, add a little sparkle, go completely frosty — or simply bring something you love.</p>
+      </div>
+
+      <div className="idea-cards">
+        <article className="idea-card">
+          <div className="idea-icon">❄</div><h4>Frost Your Food</h4>
+          <p>Add a snowy, icy or sparkling touch to something you already like.</p>
+          <ul><li>Snowy white toppings or garnishes</li><li>Icy blue or silver accents</li><li>A snowdrift of cheese, yogurt, coconut or Parmesan</li><li>Serve it chilled, sparkling or on ice</li><li>Or just give the presentation a frosty twist</li></ul>
+        </article>
+        <article className="idea-card">
+          <div className="idea-icon">✦</div><h4>Give It a Frosty Name</h4>
+          <p>An ordinary favourite can become perfectly frosty with nothing more than a new name.</p>
+          <div className="name-cloud"><span>Frostbite Wings</span><span>Snowdrift Dip</span><span>Black Ice Brownies</span><span>Northern Lights Punch</span><span>Snowbank Cheesecake</span><span>Arctic Garden</span><span>Snow Day Sliders</span><span>The Cold Board</span></div>
+        </article>
+        <article className="idea-card">
+          <div className="idea-icon">✧</div><h4>Frost Yourself — If You Feel Like It</h4>
+          <p>This is not a costume party. Be exactly as frosty as your own frosty self wants to be.</p>
+          <ul><li>A little silver or sparkle</li><li>White or icy blue</li><li>Snowflake jewellery</li><li>A ridiculous winter hat</li><li>Full frosty masterpiece</li><li>Or absolutely nothing extra</li></ul>
+        </article>
+      </div>
+      <div className="word-bank"><b>Try words like:</b> Snow · Frost · Ice · Blizzard · Polar · Frozen · Snowdrift · Cold Snap · Icicle · Arctic · Winter · North Pole</div>
+    </section>}
+
+    <footer>Good Friends ❄ Great Food ❄ Festive Drinks ❄ Epic Karaoke</footer>
   </main>
 }
