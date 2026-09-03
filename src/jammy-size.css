@@ -1,0 +1,10 @@
+.jammy-art{height:78%;right:1%;bottom:0}
+
+@media(max-width:900px){
+  .jammy-art{height:70%;right:-6%;bottom:0}
+}
+
+@media(max-width:650px){
+  .jammy-wrap{min-height:300px;margin-top:20px}
+  .jammy-art{height:290px;right:50%;bottom:0;transform:translateX(50%)}
+}
