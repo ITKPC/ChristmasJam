@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 
 type Rsvp = 'coming' | 'maybe' | 'declined'
-type Page = 'jam' | 'rsvp' | 'coming' | 'feast' | 'ideas'
+type Page = 'jam' | 'rsvp' | 'edit' | 'coming' | 'feast' | 'ideas'
 type Guest = {
   id: string
   guest_name: string
@@ -42,7 +42,8 @@ const FOOD_LABELS: Record<(typeof FOOD_GROUPS)[number], string> = {
 }
 const navItems: { id: Page; label: string }[] = [
   { id: 'jam', label: 'The Jam' },
-  { id: 'rsvp', label: 'My RSVP' },
+  { id: 'rsvp', label: 'RSVP' },
+  { id: 'edit', label: 'Edit My RSVP' },
   { id: 'coming', label: "Who's Coming" },
   { id: 'feast', label: 'The Frosted Feast' },
   { id: 'ideas', label: 'Frosty Ideas' },
@@ -115,12 +116,26 @@ export default function App() {
     if (unlocked) loadParty()
   }, [unlocked])
 
+  function clearRsvpForm() {
+    setName('')
+    setPlusOne('')
+    setRsvp('coming')
+    setCategory('')
+    setBringing('')
+    setFrostedName('')
+    setEditingGuestId(null)
+    setReviewing(false)
+    setSavedSummary(null)
+    setSaveError('')
+  }
+
   function go(next: Page) {
     setPage(next)
     setSavedSummary(null)
     setReviewing(false)
     setSaveError('')
-    if (next === 'coming' || next === 'feast' || next === 'rsvp') loadParty()
+    if (next === 'rsvp' || next === 'edit') clearRsvpForm()
+    if (next === 'coming' || next === 'feast' || next === 'edit') loadParty()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -133,19 +148,6 @@ export default function App() {
     localStorage.setItem('frosted-jam-unlocked', 'yes')
     setGateError('')
     setUnlocked(true)
-  }
-
-  function clearRsvpForm() {
-    setName('')
-    setPlusOne('')
-    setRsvp('coming')
-    setCategory('')
-    setBringing('')
-    setFrostedName('')
-    setEditingGuestId(null)
-    setReviewing(false)
-    setSavedSummary(null)
-    setSaveError('')
   }
 
   function chooseRsvpToEdit(guestId: string) {
@@ -171,6 +173,7 @@ export default function App() {
     setReviewing(false)
     setSavedSummary(null)
     setSaveError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function validateRsvp() {
@@ -273,6 +276,40 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const rsvpFields = <form onSubmit={reviewRsvp} className="rsvp-form">
+    <div className="two"><label>Your name<input value={name} onChange={e => setName(e.target.value)} required maxLength={80} autoComplete="name" /></label><label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" maxLength={80} /></label></div>
+    <fieldset><legend>Are you coming?</legend><div className="choices"><button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button><button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button><button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button></div></fieldset>
+    {rsvp !== 'declined' && <div className="food-fields">
+      <div className="two"><label>What kind of contribution?<select value={category} onChange={e => setCategory(e.target.value)}><option value="">Choose if you know</option>{FOOD_GROUPS.map(group => <option key={group}>{group}</option>)}</select></label><label>What are you actually bringing?<input value={bringing} onChange={e => setBringing(e.target.value)} placeholder="e.g. Spinach Dip" maxLength={200} /></label></div>
+      <label>Frosted Jam name <small>Optional</small><input value={frostedName} onChange={e => setFrostedName(e.target.value)} placeholder="e.g. Snowdrift Spinach Dip" maxLength={120} /><span className="field-help">Keep the real food name above. This is just the fun party name.</span></label>
+    </div>}
+    {rsvp === 'declined' && editingGuestId && <p className="review-note">Changing this RSVP to Can't Make It will also remove its food from the Frosted Feast.</p>}
+    {saveError && <p className="error" role="alert">{saveError}</p>}
+    <button className="primary" disabled={saving}>{saving ? 'Please wait...' : editingGuestId ? 'Review My Changes' : 'Review My RSVP'}</button>
+  </form>
+
+  const reviewPanel = <>
+    <div className="page-heading"><p className="kicker">One Quick Check</p><h2>Before We Save It...</h2><p>Make sure this is exactly what you meant to send us.</p></div>
+    <section className="rsvp-review">
+      <div className="review-line"><span>Guest{plusOne.trim() ? 's' : ''}</span><b>{name.trim()}{plusOne.trim() ? ` & ${plusOne.trim()}` : ''}</b></div>
+      <div className="review-line"><span>RSVP</span><b>{rsvp === 'coming' ? 'Coming' : rsvp === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
+      {rsvp !== 'declined' && bringing.trim() && <>
+        <div className="review-line"><span>Category</span><b>{category}</b></div>
+        <div className="review-line"><span>You're bringing</span><b>{bringing.trim()}</b></div>
+        {frostedName.trim() && <div className="review-line frosted"><span>Frosted Jam name</span><b>{frostedName.trim()}</b></div>}
+        {!frostedName.trim() && <div className="frost-name-nudge">
+          <b>Want to frost up the name?</b>
+          <p>Totally optional. Keep the real food name above, and add a fun Frosted Jam name just for the spirit of the party.</p>
+          <p className="nudge-words">Try words like Snowdrift · Blizzard · Frostbite · Arctic · Polar · Icicle</p>
+          <button type="button" className="secondary" onClick={editRsvpForm}>Add a Frosted Jam Name</button>
+        </div>}
+      </>}
+      {rsvp !== 'declined' && !bringing.trim() && <p className="review-note">No food choice yet - that's completely fine. You can decide later.</p>}
+      {saveError && <p className="error" role="alert">{saveError}</p>}
+      <div className="review-actions"><button type="button" className="secondary" onClick={editRsvpForm} disabled={saving}>Make a Change</button><button type="button" className="primary" onClick={saveConfirmedRsvp} disabled={saving}>{saving ? 'Saving...' : editingGuestId ? 'Looks Good - Update This RSVP' : 'Looks Good - Save My RSVP'}</button></div>
+    </section>
+  </>
+
   if (!unlocked) {
     return <main className="gate">
       <section className="invite-card">
@@ -311,7 +348,7 @@ export default function App() {
           <h2><span>Baby, It's</span><span>Cold Inside</span></h2>
           <p className="hero-script">A Frosted Jam</p>
           <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — music, laughter, a little friendly chaos and plenty of frosty fun.</p>
-          <div className="jam-actions"><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('rsvp')}>Edit My RSVP</button><button className="secondary big" onClick={() => go('coming')}>See Who's Coming</button></div>
+          <div className="jam-actions"><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('edit')}>Edit My RSVP</button><button className="secondary big" onClick={() => go('coming')}>See Who's Coming</button></div>
           <div className="jam-date"><b>Saturday, December 12, 2026</b><span>6:00 PM · Nancy & Rick's</span></div>
         </div>
         <div className="jammy-wrap" aria-label="Jammy, the Frosted Jam mascot">
@@ -343,7 +380,7 @@ export default function App() {
 
     {page === 'rsvp' && <section className="content-page narrow">
       {savedSummary ? <>
-        <div className="page-heading"><p className="kicker">RSVP Saved</p><h2>{savedSummary.rsvpStatus === 'declined' ? "We've Updated It" : "You're All Set"}</h2><p>Here is exactly what we saved.</p></div>
+        <div className="page-heading"><p className="kicker">RSVP Saved</p><h2>{savedSummary.rsvpStatus === 'declined' ? "We've Got It" : "You're All Set"}</h2><p>Here is exactly what we saved.</p></div>
         <section className="rsvp-success" aria-live="polite">
           <div className="review-line"><span>Guest{savedSummary.partySize > 1 ? 's' : ''}</span><b>{savedSummary.guestName}{savedSummary.plusOneName ? ` & ${savedSummary.plusOneName}` : ''}</b></div>
           <div className="review-line"><span>RSVP</span><b>{savedSummary.rsvpStatus === 'coming' ? 'Coming' : savedSummary.rsvpStatus === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
@@ -353,52 +390,43 @@ export default function App() {
             {savedSummary.frostedName && <div className="review-line frosted"><span>Frosted Jam name</span><b>{savedSummary.frostedName}</b></div>}
           </>}
           {!savedSummary.itemName && savedSummary.rsvpStatus !== 'declined' && <p className="review-note">No food choice yet - that's completely fine.</p>}
-          <div className="review-actions"><button className="primary" type="button" onClick={() => { setSavedSummary(null); loadParty() }}>Edit My RSVP</button><button className="secondary" type="button" onClick={() => go('coming')}>See Who's Coming</button></div>
+          <div className="review-actions"><button className="primary" type="button" onClick={() => go('edit')}>Edit My RSVP</button><button className="secondary" type="button" onClick={() => go('coming')}>See Who's Coming</button></div>
         </section>
-      </> : reviewing ? <>
-        <div className="page-heading"><p className="kicker">One Quick Check</p><h2>Before We Save It...</h2><p>Make sure this is exactly what you meant to send us.</p></div>
-        <section className="rsvp-review">
-          <div className="review-line"><span>Guest{plusOne.trim() ? 's' : ''}</span><b>{name.trim()}{plusOne.trim() ? ` & ${plusOne.trim()}` : ''}</b></div>
-          <div className="review-line"><span>RSVP</span><b>{rsvp === 'coming' ? 'Coming' : rsvp === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
-          {rsvp !== 'declined' && bringing.trim() && <>
-            <div className="review-line"><span>Category</span><b>{category}</b></div>
-            <div className="review-line"><span>You're bringing</span><b>{bringing.trim()}</b></div>
-            {frostedName.trim() && <div className="review-line frosted"><span>Frosted Jam name</span><b>{frostedName.trim()}</b></div>}
-            {!frostedName.trim() && <div className="frost-name-nudge">
-              <b>Want to frost up the name?</b>
-              <p>Totally optional. Keep the real food name above, and add a fun Frosted Jam name just for the spirit of the party.</p>
-              <p className="nudge-words">Try words like Snowdrift · Blizzard · Frostbite · Arctic · Polar · Icicle</p>
-              <button type="button" className="secondary" onClick={editRsvpForm}>Add a Frosted Jam Name</button>
-            </div>}
-          </>}
-          {rsvp !== 'declined' && !bringing.trim() && <p className="review-note">No food choice yet - that's completely fine. You can decide later.</p>}
-          {saveError && <p className="error" role="alert">{saveError}</p>}
-          <div className="review-actions"><button type="button" className="secondary" onClick={editRsvpForm} disabled={saving}>Make a Change</button><button type="button" className="primary" onClick={saveConfirmedRsvp} disabled={saving}>{saving ? 'Saving...' : editingGuestId ? 'Looks Good - Update This RSVP' : 'Looks Good - Save My RSVP'}</button></div>
-        </section>
-      </> : <>
-        <div className="page-heading"><p className="kicker">My RSVP</p><h2>{editingGuestId ? 'Edit Your RSVP' : "Tell Us If You're Coming"}</h2><p>{editingGuestId ? 'Change anything you need - attendance, guest, food or Frosted Jam name.' : 'New RSVP, or choose your name below if you already replied and want to change something.'}</p></div>
+      </> : reviewing ? reviewPanel : <>
+        <div className="page-heading"><p className="kicker">RSVP</p><h2>Tell Us If You're Coming</h2><p>Let us know who's coming and, if you know already, what you're bringing.</p></div>
+        {rsvpFields}
+      </>}
+    </section>}
 
-        <section className="edit-picker">
-          <label>Already RSVP'd? Pick your name to edit
-            <select value={editingGuestId || ''} onChange={e => chooseRsvpToEdit(e.target.value)}>
-              <option value="">I'm adding a new RSVP</option>
+    {page === 'edit' && <section className="content-page narrow">
+      {savedSummary ? <>
+        <div className="page-heading"><p className="kicker">RSVP Updated</p><h2>Changes Saved</h2><p>Here is exactly what we saved.</p></div>
+        <section className="rsvp-success" aria-live="polite">
+          <div className="review-line"><span>Guest{savedSummary.partySize > 1 ? 's' : ''}</span><b>{savedSummary.guestName}{savedSummary.plusOneName ? ` & ${savedSummary.plusOneName}` : ''}</b></div>
+          <div className="review-line"><span>RSVP</span><b>{savedSummary.rsvpStatus === 'coming' ? 'Coming' : savedSummary.rsvpStatus === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
+          {savedSummary.itemName && <>
+            <div className="review-line"><span>Category</span><b>{savedSummary.category}</b></div>
+            <div className="review-line"><span>You're bringing</span><b>{savedSummary.itemName}</b></div>
+            {savedSummary.frostedName && <div className="review-line frosted"><span>Frosted Jam name</span><b>{savedSummary.frostedName}</b></div>}
+          </>}
+          {!savedSummary.itemName && savedSummary.rsvpStatus !== 'declined' && <p className="review-note">No food choice yet - that's completely fine.</p>}
+          <div className="review-actions"><button className="primary" type="button" onClick={clearRsvpForm}>Edit Another RSVP</button><button className="secondary" type="button" onClick={() => go('coming')}>See Who's Coming</button></div>
+        </section>
+      </> : reviewing ? reviewPanel : editingGuestId ? <>
+        <div className="page-heading"><p className="kicker">Edit My RSVP</p><h2>{name}</h2><p>Change anything you need — whether you're coming, your guest, your food or your Frosted Jam name.</p></div>
+        <div className="review-actions" style={{ justifyContent: 'flex-start', marginTop: 0, marginBottom: 22 }}><button type="button" className="secondary" onClick={clearRsvpForm}>Choose Someone Else</button></div>
+        {rsvpFields}
+      </> : <>
+        <div className="page-heading"><p className="kicker">Edit My RSVP</p><h2>Who Are You?</h2><p>Pick your name and we'll show you exactly what you entered.</p></div>
+        {loadError && <p className="error" role="alert">{loadError}</p>}
+        {partyLoading ? <p className="loading">Loading the guest list…</p> : <section className="edit-picker">
+          <label>Your name
+            <select value="" onChange={e => chooseRsvpToEdit(e.target.value)}>
+              <option value="">Choose your name</option>
               {editableGuests.map(g => <option key={g.id} value={g.id}>{g.guest_name}{g.plus_one_name ? ` & ${g.plus_one_name}` : ''}</option>)}
             </select>
           </label>
-          <p>We trust our guests. Pick your RSVP and the current details will appear below for you to change.</p>
-        </section>
-
-        <form onSubmit={reviewRsvp} className="rsvp-form">
-          <div className="two"><label>Your name<input value={name} onChange={e => setName(e.target.value)} required maxLength={80} autoComplete="name" /></label><label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" maxLength={80} /></label></div>
-          <fieldset><legend>Are you coming?</legend><div className="choices"><button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button><button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button><button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button></div></fieldset>
-          {rsvp !== 'declined' && <div className="food-fields">
-            <div className="two"><label>What kind of contribution?<select value={category} onChange={e => setCategory(e.target.value)}><option value="">Choose if you know</option>{FOOD_GROUPS.map(group => <option key={group}>{group}</option>)}</select></label><label>What are you actually bringing?<input value={bringing} onChange={e => setBringing(e.target.value)} placeholder="e.g. Spinach Dip" maxLength={200} /></label></div>
-            <label>Frosted Jam name <small>Optional</small><input value={frostedName} onChange={e => setFrostedName(e.target.value)} placeholder="e.g. Snowdrift Spinach Dip" maxLength={120} /><span className="field-help">Keep the real food name above. This is just the fun party name.</span></label>
-          </div>}
-          {rsvp === 'declined' && <p className="review-note">If you change this RSVP to Can't Make It, any food attached to it will be removed from the Frosted Feast.</p>}
-          {saveError && <p className="error" role="alert">{saveError}</p>}
-          <button className="primary" disabled={saving}>{saving ? 'Please wait...' : 'Review My RSVP'}</button>
-        </form>
+        </section>}
       </>}
     </section>}
 
