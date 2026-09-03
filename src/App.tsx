@@ -42,7 +42,7 @@ const FOOD_LABELS: Record<(typeof FOOD_GROUPS)[number], string> = {
 }
 const navItems: { id: Page; label: string }[] = [
   { id: 'jam', label: 'The Jam' },
-  { id: 'rsvp', label: 'RSVP' },
+  { id: 'rsvp', label: 'My RSVP' },
   { id: 'coming', label: "Who's Coming" },
   { id: 'feast', label: 'The Frosted Feast' },
   { id: 'ideas', label: 'Frosty Ideas' },
@@ -311,7 +311,7 @@ export default function App() {
           <h2><span>Baby, It's</span><span>Cold Inside</span></h2>
           <p className="hero-script">A Frosted Jam</p>
           <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — music, laughter, a little friendly chaos and plenty of frosty fun.</p>
-          <div className="jam-actions"><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('coming')}>Who's Coming</button></div>
+          <div className="jam-actions"><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('rsvp')}>Edit My RSVP</button><button className="secondary big" onClick={() => go('coming')}>See Who's Coming</button></div>
           <div className="jam-date"><b>Saturday, December 12, 2026</b><span>6:00 PM · Nancy & Rick's</span></div>
         </div>
         <div className="jammy-wrap" aria-label="Jammy, the Frosted Jam mascot">
@@ -353,7 +353,7 @@ export default function App() {
             {savedSummary.frostedName && <div className="review-line frosted"><span>Frosted Jam name</span><b>{savedSummary.frostedName}</b></div>}
           </>}
           {!savedSummary.itemName && savedSummary.rsvpStatus !== 'declined' && <p className="review-note">No food choice yet - that's completely fine.</p>}
-          <div className="review-actions"><button className="primary" type="button" onClick={() => { setSavedSummary(null); loadParty() }}>Edit an RSVP</button><button className="secondary" type="button" onClick={() => go('coming')}>See Who's Coming</button></div>
+          <div className="review-actions"><button className="primary" type="button" onClick={() => { setSavedSummary(null); loadParty() }}>Edit My RSVP</button><button className="secondary" type="button" onClick={() => go('coming')}>See Who's Coming</button></div>
         </section>
       </> : reviewing ? <>
         <div className="page-heading"><p className="kicker">One Quick Check</p><h2>Before We Save It...</h2><p>Make sure this is exactly what you meant to send us.</p></div>
@@ -376,7 +376,7 @@ export default function App() {
           <div className="review-actions"><button type="button" className="secondary" onClick={editRsvpForm} disabled={saving}>Make a Change</button><button type="button" className="primary" onClick={saveConfirmedRsvp} disabled={saving}>{saving ? 'Saving...' : editingGuestId ? 'Looks Good - Update This RSVP' : 'Looks Good - Save My RSVP'}</button></div>
         </section>
       </> : <>
-        <div className="page-heading"><p className="kicker">RSVP</p><h2>{editingGuestId ? 'Edit Your RSVP' : "Tell Us If You're Coming"}</h2><p>{editingGuestId ? 'Change anything you need - attendance, guest, food or Frosted Jam name.' : 'New RSVP, or choose your name below if you already replied and want to change something.'}</p></div>
+        <div className="page-heading"><p className="kicker">My RSVP</p><h2>{editingGuestId ? 'Edit Your RSVP' : "Tell Us If You're Coming"}</h2><p>{editingGuestId ? 'Change anything you need - attendance, guest, food or Frosted Jam name.' : 'New RSVP, or choose your name below if you already replied and want to change something.'}</p></div>
 
         <section className="edit-picker">
           <label>Already RSVP'd? Pick your name to edit
