@@ -30,8 +30,7 @@ alter table public.contributions enable row level security;
 revoke all on table public.guest_entries from anon, authenticated;
 revoke all on table public.contributions from anon, authenticated;
 grant select (id, guest_name, plus_one_name, party_size, is_host, rsvp_status, food_category, bringing_item, frosting_description, created_at, updated_at) on table public.guest_entries to anon, authenticated;
-grant insert on table public.guest_entries to anon, authenticated;
-grant select, insert on table public.contributions to anon, authenticated;
+grant select on table public.contributions to anon, authenticated;
 
 drop policy if exists "party guests can view entries" on public.guest_entries;
 drop policy if exists "party guests can add entries" on public.guest_entries;
@@ -39,9 +38,7 @@ drop policy if exists "party guests can view contributions" on public.contributi
 drop policy if exists "party guests can add contributions" on public.contributions;
 
 create policy "party guests can view entries" on public.guest_entries for select to anon, authenticated using (true);
-create policy "party guests can add entries" on public.guest_entries for insert to anon, authenticated with check (is_host = false and guest_name <> '');
 create policy "party guests can view contributions" on public.contributions for select to anon, authenticated using (true);
-create policy "party guests can add contributions" on public.contributions for insert to anon, authenticated with check (exists (select 1 from public.guest_entries g where g.id = guest_entry_id and g.is_host = false));
 
 create or replace function public.get_my_rsvp(p_guest_id uuid, p_edit_token uuid)
 returns table (
