@@ -5,6 +5,8 @@ type Guest = {
   id: string
   name: string
   plusOne?: string
+  partySize: number
+  host?: boolean
   rsvp: Rsvp
   category?: string
   bringing?: string
@@ -14,8 +16,16 @@ type Guest = {
 const PARTY_CODE = 'Frosty26'
 
 const starterGuests: Guest[] = [
-  { id: '1', name: 'Nancy & Rick', rsvp: 'coming', category: 'Main', bringing: 'Chicken meatballs', frosting: 'Chicken Meatballs with Frosted Blueberry Kiss' },
-  { id: '2', name: 'Sample Guest', rsvp: 'coming', category: 'Appetizer', bringing: 'Baked brie', frosting: 'Snowed-In Brie' },
+  {
+    id: 'hosts',
+    name: 'Nancy & Rick',
+    partySize: 2,
+    host: true,
+    rsvp: 'coming',
+    category: 'Main · Appetizer · Side',
+    bringing: 'Chicken meatballs · an appetizer · baked potatoes',
+    frosting: 'Chicken Meatballs with Frosted Blueberry Kiss',
+  },
 ]
 
 export default function App() {
@@ -30,8 +40,14 @@ export default function App() {
   const [bringing, setBringing] = useState('')
   const [frosting, setFrosting] = useState('')
 
-  const coming = useMemo(() => guests.filter(g => g.rsvp === 'coming').length, [guests])
-  const maybe = useMemo(() => guests.filter(g => g.rsvp === 'maybe').length, [guests])
+  const coming = useMemo(
+    () => guests.filter(g => g.rsvp === 'coming').reduce((total, g) => total + g.partySize, 0),
+    [guests],
+  )
+  const maybe = useMemo(
+    () => guests.filter(g => g.rsvp === 'maybe').reduce((total, g) => total + g.partySize, 0),
+    [guests],
+  )
 
   function enter(e: FormEvent) {
     e.preventDefault()
@@ -49,6 +65,7 @@ export default function App() {
       id: crypto.randomUUID(),
       name: name.trim(),
       plusOne: plusOne.trim() || undefined,
+      partySize: plusOne.trim() ? 2 : 1,
       rsvp,
       category: category || undefined,
       bringing: bringing.trim() || undefined,
@@ -70,6 +87,7 @@ export default function App() {
         <div className="script">A Frosted Jam</div>
         <p className="date">Saturday · December 12, 2026 · 6:00 PM</p>
         <p className="tagline">Our hearts are warm, our friendships sparkle, and our voices are snow joke.</p>
+        <p className="hosts">Hosted by Nancy & Rick</p>
         <form onSubmit={enter} className="code-form">
           <label>Enter the party code</label>
           <div className="code-row">
@@ -87,7 +105,7 @@ export default function App() {
       <div>
         <div className="eyebrow">BABY, IT'S COLD INSIDE</div>
         <h2>A Frosted Jam</h2>
-        <p>Saturday, December 12 · 6:00 PM</p>
+        <p>Saturday, December 12 · 6:00 PM · Hosted by Nancy & Rick</p>
       </div>
       <div className="count"><b>{coming}</b><span>coming</span></div>
     </header>
@@ -139,7 +157,10 @@ export default function App() {
       </div>
       <div className="guest-grid">
         {guests.filter(g => g.rsvp !== 'declined').map(g => <article className="guest" key={g.id}>
-          <div className="guest-head"><h4>{g.name}{g.plusOne ? ` & ${g.plusOne}` : ''}</h4><b>{g.rsvp === 'coming' ? 'Coming' : 'Maybe'}</b></div>
+          <div className="guest-head">
+            <h4>{g.name}{g.plusOne ? ` & ${g.plusOne}` : ''} {g.host && <span className="host-badge">HOSTS</span>}</h4>
+            <b>{g.rsvp === 'coming' ? 'Coming' : 'Maybe'}</b>
+          </div>
           {g.category && <span className="category">{g.category}</span>}
           {g.bringing && <p className="bringing">{g.bringing}</p>}
           {g.frosting && <p className="frosting"><strong>Frosty spin:</strong> {g.frosting}</p>}
