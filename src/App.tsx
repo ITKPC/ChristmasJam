@@ -174,11 +174,6 @@ export default function App() {
         <p>Give your food a frosty name, add an icy presentation, wear a little sparkle — or do none of it. Creativity is encouraged. Pressure is not.</p>
         <button className="secondary" onClick={() => setPage('ideas')}>See Frosty Ideas</button>
       </section>
-
-      <section className="closing-hit">
-        <h3>Good friends. Great food. Epic karaoke.</h3>
-        <button className="primary big" onClick={() => setPage('rsvp')}>Count Me In</button>
-      </section>
     </section>}
 
     {page === 'rsvp' && <section className="content-page narrow">
@@ -228,7 +223,5 @@ export default function App() {
       </div>
       <div className="word-bank"><b>Try words like</b><span>Snow · Frost · Ice · Blizzard · Polar · Frozen · Snowdrift · Cold Snap · Icicle · Arctic · Winter · North Pole</span></div>
     </section>}
-
-    <footer>Good Friends ❄ Great Food ❄ Epic Karaoke</footer>
   </main>
 }
