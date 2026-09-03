@@ -21,6 +21,8 @@ create table if not exists public.contributions (
   created_at timestamptz not null default now()
 );
 
+create index if not exists contributions_guest_entry_id_idx on public.contributions (guest_entry_id);
+
 alter table public.guest_entries enable row level security;
 alter table public.contributions enable row level security;
 
