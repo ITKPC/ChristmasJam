@@ -150,7 +150,7 @@ export default function App() {
     <header className="site-header">
       <button className="brand" onClick={() => go('jam')}>
         <span>A Frosted Jam</span>
-        <small>December 12 · 6:00 PM</small>
+        <small>December 12, 2026 · 6:00 PM</small>
       </button>
       <div className="attendance"><b>{coming}</b> coming{maybe ? ` · ${maybe} maybe` : ''}</div>
     </header>
@@ -167,7 +167,7 @@ export default function App() {
           <p className="hero-script">A Frosted Jam</p>
           <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — music, laughter, a little friendly chaos and plenty of frosty fun.</p>
           <div className="jam-actions"><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('coming')}>Who's Coming</button></div>
-          <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
+          <div className="jam-date"><b>Saturday, December 12, 2026</b><span>6:00 PM · Nancy & Rick's</span></div>
         </div>
         <div className="jammy-wrap" aria-label="Jammy, the Frosted Jam mascot">
           <img className="jammy-art" src="/Jammy.png" alt="Jammy holding a karaoke microphone" />
