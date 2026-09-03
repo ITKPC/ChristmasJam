@@ -8,7 +8,6 @@ create table if not exists public.guest_entries (
   food_category text check (food_category is null or food_category in ('Appetizer','Main','Side','Dessert','Drink','Snack','Other','Hosts')),
   bringing_item text check (bringing_item is null or char_length(bringing_item) <= 300),
   frosting_description text check (frosting_description is null or char_length(frosting_description) <= 500),
-  edit_token uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -33,41 +32,15 @@ grant select (id, guest_name, plus_one_name, party_size, is_host, rsvp_status, f
 grant select on table public.contributions to anon, authenticated;
 
 drop policy if exists "party guests can view entries" on public.guest_entries;
-drop policy if exists "party guests can add entries" on public.guest_entries;
 drop policy if exists "party guests can view contributions" on public.contributions;
-drop policy if exists "party guests can add contributions" on public.contributions;
 
 create policy "party guests can view entries" on public.guest_entries for select to anon, authenticated using (true);
 create policy "party guests can view contributions" on public.contributions for select to anon, authenticated using (true);
 
-create or replace function public.get_my_rsvp(p_guest_id uuid, p_edit_token uuid)
-returns table (
-  id uuid,
-  guest_name text,
-  plus_one_name text,
-  party_size smallint,
-  is_host boolean,
-  rsvp_status text,
-  food_category text,
-  bringing_item text,
-  frosting_description text
-)
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select g.id, g.guest_name, g.plus_one_name, g.party_size, g.is_host, g.rsvp_status,
-         g.food_category, g.bringing_item, g.frosting_description
-  from public.guest_entries g
-  where g.id = p_guest_id
-    and g.edit_token = p_edit_token
-    and g.is_host = false;
-$$;
-
-create or replace function public.save_guest_rsvp(
+-- This is intentionally a trusted-party edit model. Anyone who has entered the party app
+-- can choose a non-host RSVP from the guest picker and update it. Host rows cannot be edited.
+create or replace function public.save_party_rsvp(
   p_guest_id uuid,
-  p_edit_token uuid,
   p_guest_name text,
   p_plus_one_name text,
   p_rsvp_status text,
@@ -97,7 +70,6 @@ declare
   v_item text;
   v_frosted text;
 begin
-  if p_edit_token is null then raise exception 'missing edit token'; end if;
   if p_guest_name is null or char_length(trim(p_guest_name)) < 1 or char_length(trim(p_guest_name)) > 80 then raise exception 'invalid guest name'; end if;
   if p_plus_one_name is not null and char_length(trim(p_plus_one_name)) > 80 then raise exception 'invalid guest name'; end if;
   if p_rsvp_status not in ('coming','maybe','declined') then raise exception 'invalid RSVP status'; end if;
@@ -114,16 +86,22 @@ begin
   if v_frosted is not null and v_item is null then raise exception 'real food name required before Frosted Jam name'; end if;
 
   if p_guest_id is null then
-    insert into public.guest_entries (guest_name, plus_one_name, party_size, is_host, rsvp_status, food_category, bringing_item, frosting_description, edit_token)
-    values (trim(p_guest_name), nullif(trim(coalesce(p_plus_one_name, '')), ''), v_party_size, false, p_rsvp_status, v_category, v_item, v_frosted, p_edit_token)
+    insert into public.guest_entries (guest_name, plus_one_name, party_size, is_host, rsvp_status, food_category, bringing_item, frosting_description)
+    values (trim(p_guest_name), nullif(trim(coalesce(p_plus_one_name, '')), ''), v_party_size, false, p_rsvp_status, v_category, v_item, v_frosted)
     returning public.guest_entries.id into v_id;
   else
     update public.guest_entries g
-    set guest_name = trim(p_guest_name), plus_one_name = nullif(trim(coalesce(p_plus_one_name, '')), ''), party_size = v_party_size,
-        rsvp_status = p_rsvp_status, food_category = v_category, bringing_item = v_item, frosting_description = v_frosted, updated_at = now()
-    where g.id = p_guest_id and g.edit_token = p_edit_token and g.is_host = false
+    set guest_name = trim(p_guest_name),
+        plus_one_name = nullif(trim(coalesce(p_plus_one_name, '')), ''),
+        party_size = v_party_size,
+        rsvp_status = p_rsvp_status,
+        food_category = v_category,
+        bringing_item = v_item,
+        frosting_description = v_frosted,
+        updated_at = now()
+    where g.id = p_guest_id and g.is_host = false
     returning g.id into v_id;
-    if v_id is null then raise exception 'invalid edit credentials'; end if;
+    if v_id is null then raise exception 'guest RSVP not found or cannot be edited'; end if;
   end if;
 
   delete from public.contributions c where c.guest_entry_id = v_id;
@@ -133,10 +111,12 @@ begin
   end if;
 
   return query
-  select g.id, g.guest_name, g.plus_one_name, g.party_size, g.is_host, g.rsvp_status, g.food_category, g.bringing_item, g.frosting_description
-  from public.guest_entries g where g.id = v_id;
+  select g.id, g.guest_name, g.plus_one_name, g.party_size, g.is_host, g.rsvp_status,
+         g.food_category, g.bringing_item, g.frosting_description
+  from public.guest_entries g
+  where g.id = v_id;
 end;
 $$;
 
-grant execute on function public.get_my_rsvp(uuid, uuid) to anon, authenticated;
-grant execute on function public.save_guest_rsvp(uuid, uuid, text, text, text, text, text, text) to anon, authenticated;
+revoke all on function public.save_party_rsvp(uuid,text,text,text,text,text,text) from public;
+grant execute on function public.save_party_rsvp(uuid,text,text,text,text,text,text) to anon, authenticated;
