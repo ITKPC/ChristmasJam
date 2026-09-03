@@ -32,6 +32,8 @@ type SavedSummary = {
 }
 
 const PARTY_CODE = 'Frosty26'
+const RSVP_ID_KEY = 'frosted-jam-rsvp-id'
+const RSVP_TOKEN_KEY = 'frosted-jam-rsvp-edit-token'
 const FOOD_GROUPS = ['Appetizer', 'Main', 'Side', 'Dessert', 'Other'] as const
 const FOOD_LABELS: Record<(typeof FOOD_GROUPS)[number], string> = {
   Appetizer: 'Appetizers',
@@ -52,6 +54,10 @@ function isFoodGroup(value: string): value is (typeof FOOD_GROUPS)[number] {
   return FOOD_GROUPS.includes(value as (typeof FOOD_GROUPS)[number])
 }
 
+function createEditToken() {
+  return crypto.randomUUID()
+}
+
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem('frosted-jam-unlocked') === 'yes')
   const [page, setPage] = useState<Page>('jam')
@@ -70,8 +76,10 @@ export default function App() {
   const [bringing, setBringing] = useState('')
   const [frostedName, setFrostedName] = useState('')
   const [reviewing, setReviewing] = useState(false)
-  const [savedGuestId, setSavedGuestId] = useState<string | null>(null)
   const [savedSummary, setSavedSummary] = useState<SavedSummary | null>(null)
+  const [managedGuest, setManagedGuest] = useState<Guest | null>(null)
+  const [editingGuestId, setEditingGuestId] = useState<string | null>(null)
+  const [cancelConfirm, setCancelConfirm] = useState(false)
 
   const coming = useMemo(() => guests.filter(g => g.rsvp_status === 'coming').reduce((sum, g) => sum + g.party_size, 0), [guests])
   const maybe = useMemo(() => guests.filter(g => g.rsvp_status === 'maybe').reduce((sum, g) => sum + g.party_size, 0), [guests])
@@ -110,13 +118,43 @@ export default function App() {
     setPartyLoading(false)
   }
 
+  async function loadMyRsvp() {
+    const guestId = localStorage.getItem(RSVP_ID_KEY)
+    const editToken = localStorage.getItem(RSVP_TOKEN_KEY)
+    if (!guestId || !editToken) {
+      setManagedGuest(null)
+      return
+    }
+
+    const { data, error } = await supabase.rpc('get_my_rsvp', {
+      p_guest_id: guestId,
+      p_edit_token: editToken,
+    })
+
+    if (error || !data?.length) {
+      localStorage.removeItem(RSVP_ID_KEY)
+      localStorage.removeItem(RSVP_TOKEN_KEY)
+      setManagedGuest(null)
+      return
+    }
+
+    setManagedGuest(data[0] as Guest)
+  }
+
   useEffect(() => {
-    if (unlocked) loadParty()
+    if (unlocked) {
+      loadParty()
+      loadMyRsvp()
+    }
   }, [unlocked])
 
   function go(next: Page) {
     setPage(next)
+    setSavedSummary(null)
+    setReviewing(false)
+    setCancelConfirm(false)
     if (next === 'coming' || next === 'feast') loadParty()
+    if (next === 'rsvp') loadMyRsvp()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -167,9 +205,25 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function editRsvp() {
+  function editRsvpForm() {
     if (saving) return
     setReviewing(false)
+    setSaveError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function startEditingManagedRsvp() {
+    if (!managedGuest) return
+    setName(managedGuest.guest_name)
+    setPlusOne(managedGuest.plus_one_name || '')
+    setRsvp(managedGuest.rsvp_status)
+    setCategory(managedGuest.food_category && isFoodGroup(managedGuest.food_category) ? managedGuest.food_category : '')
+    setBringing(managedGuest.bringing_item || '')
+    setFrostedName(managedGuest.frosting_description || '')
+    setEditingGuestId(managedGuest.id)
+    setSavedSummary(null)
+    setReviewing(false)
+    setCancelConfirm(false)
     setSaveError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -189,63 +243,41 @@ export default function App() {
     const cleanFrostedName = rsvp === 'declined' ? '' : frostedName.trim()
     const cleanCategory = rsvp === 'declined' ? '' : category
     const partySize = cleanPlusOne ? 2 : 1
+    const existingToken = localStorage.getItem(RSVP_TOKEN_KEY)
+    const editToken = editingGuestId ? existingToken : createEditToken()
+
+    if (editingGuestId && !editToken) {
+      setSaveError('This browser no longer has the private edit key for this RSVP. Please tell Nancy or Rick what needs changing.')
+      setReviewing(false)
+      return
+    }
 
     setSaveError('')
     setSaving(true)
 
-    let guestId = savedGuestId
+    const { data, error } = await supabase.rpc('save_guest_rsvp', {
+      p_guest_id: editingGuestId,
+      p_edit_token: editToken,
+      p_guest_name: cleanName,
+      p_plus_one_name: cleanPlusOne || null,
+      p_rsvp_status: rsvp,
+      p_category: cleanCategory || null,
+      p_item_name: cleanFood || null,
+      p_frosted_name: cleanFrostedName || null,
+    })
 
-    if (!guestId) {
-      const { data: guest, error: guestError } = await supabase.from('guest_entries').insert({
-        guest_name: cleanName,
-        plus_one_name: cleanPlusOne || null,
-        party_size: partySize,
-        is_host: false,
-        rsvp_status: rsvp,
-        food_category: cleanCategory || null,
-        bringing_item: cleanFood || null,
-        frosting_description: cleanFrostedName || null,
-      }).select('id').single()
-
-      if (guestError || !guest) {
-        setSaveError('Your RSVP did not save. Nothing has been cleared - please try again.')
-        setSaving(false)
-        return
-      }
-
-      guestId = guest.id
-      setSavedGuestId(guest.id)
+    if (error || !data?.length) {
+      setSaveError('Nothing was changed. We could not save your RSVP, so please try again.')
+      setSaving(false)
+      return
     }
 
-    if (cleanCategory && cleanFood) {
-      const { data: existingFood, error: verifyError } = await supabase
-        .from('contributions')
-        .select('id')
-        .eq('guest_entry_id', guestId)
-        .limit(1)
-
-      if (verifyError) {
-        setSaveError('Your RSVP and food are safely captured, but we could not verify the feast list. Please tap Save again to retry the list sync.')
-        setSaving(false)
-        return
-      }
-
-      if (!existingFood?.length) {
-        const { data: savedFood, error: contributionError } = await supabase.from('contributions').insert({
-          guest_entry_id: guestId,
-          category: cleanCategory,
-          item_name: cleanFood,
-          frosting_description: cleanFrostedName || null,
-        }).select('id').single()
-
-        if (contributionError || !savedFood) {
-          setSaveError('Your RSVP and food are safely captured, but the feast list did not sync yet. Nothing was lost - please tap Save again to retry.')
-          setSaving(false)
-          return
-        }
-      }
-    }
-
+    const savedGuest = data[0] as Guest
+    localStorage.setItem(RSVP_ID_KEY, savedGuest.id)
+    localStorage.setItem(RSVP_TOKEN_KEY, editToken as string)
+    setManagedGuest(savedGuest)
+    setEditingGuestId(null)
+    setReviewing(false)
     setSavedSummary({
       guestName: cleanName,
       plusOneName: cleanPlusOne,
@@ -255,9 +287,7 @@ export default function App() {
       itemName: cleanFood,
       frostedName: cleanFrostedName,
     })
-    setSavedGuestId(null)
     setSaving(false)
-    setReviewing(false)
 
     setName('')
     setPlusOne('')
@@ -267,6 +297,40 @@ export default function App() {
     setFrostedName('')
     await loadParty()
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function markCannotCome() {
+    if (!managedGuest || saving) return
+    const editToken = localStorage.getItem(RSVP_TOKEN_KEY)
+    if (!editToken) {
+      setSaveError('This browser no longer has the private edit key for this RSVP. Please tell Nancy or Rick.')
+      return
+    }
+
+    setSaving(true)
+    setSaveError('')
+    const { data, error } = await supabase.rpc('save_guest_rsvp', {
+      p_guest_id: managedGuest.id,
+      p_edit_token: editToken,
+      p_guest_name: managedGuest.guest_name,
+      p_plus_one_name: managedGuest.plus_one_name,
+      p_rsvp_status: 'declined',
+      p_category: null,
+      p_item_name: null,
+      p_frosted_name: null,
+    })
+
+    if (error || !data?.length) {
+      setSaveError('Nothing was changed. We could not update your RSVP, so please try again.')
+      setSaving(false)
+      return
+    }
+
+    const savedGuest = data[0] as Guest
+    setManagedGuest(savedGuest)
+    setCancelConfirm(false)
+    setSaving(false)
+    await loadParty()
   }
 
   if (!unlocked) {
@@ -339,7 +403,7 @@ export default function App() {
 
     {page === 'rsvp' && <section className="content-page narrow">
       {savedSummary ? <>
-        <div className="page-heading"><p className="kicker">RSVP Saved</p><h2>You're In</h2><p>Here is exactly what we saved.</p></div>
+        <div className="page-heading"><p className="kicker">RSVP Saved</p><h2>{savedSummary.rsvpStatus === 'declined' ? "We've Updated It" : "You're In"}</h2><p>Here is exactly what we saved.</p></div>
         <section className="rsvp-success" aria-live="polite">
           <div className="review-line"><span>Guest{savedSummary.partySize > 1 ? 's' : ''}</span><b>{savedSummary.guestName}{savedSummary.plusOneName ? ` & ${savedSummary.plusOneName}` : ''}</b></div>
           <div className="review-line"><span>RSVP</span><b>{savedSummary.rsvpStatus === 'coming' ? 'Coming' : savedSummary.rsvpStatus === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
@@ -349,7 +413,7 @@ export default function App() {
             {savedSummary.frostedName && <div className="review-line frosted"><span>Frosted Jam name</span><b>{savedSummary.frostedName}</b></div>}
           </>}
           {!savedSummary.itemName && savedSummary.rsvpStatus !== 'declined' && <p className="review-note">No food choice yet - that's completely fine.</p>}
-          <div className="review-actions"><button className="primary" type="button" onClick={() => go('coming')}>See Who's Coming</button><button className="secondary" type="button" onClick={() => go('feast')}>See the Frosted Feast</button></div>
+          <div className="review-actions"><button className="primary" type="button" onClick={() => { setSavedSummary(null); loadMyRsvp() }}>Manage My RSVP</button><button className="secondary" type="button" onClick={() => go('coming')}>See Who's Coming</button></div>
         </section>
       </> : reviewing ? <>
         <div className="page-heading"><p className="kicker">One Quick Check</p><h2>Before We Save It...</h2><p>Make sure this is exactly what you meant to send us.</p></div>
@@ -360,19 +424,39 @@ export default function App() {
             <div className="review-line"><span>Category</span><b>{category}</b></div>
             <div className="review-line"><span>You're bringing</span><b>{bringing.trim()}</b></div>
             {frostedName.trim() && <div className="review-line frosted"><span>Frosted Jam name</span><b>{frostedName.trim()}</b></div>}
-            {!frostedName.trim() && !savedGuestId && <div className="frost-name-nudge">
+            {!frostedName.trim() && <div className="frost-name-nudge">
               <b>Want to frost up the name?</b>
               <p>Totally optional. Keep the real food name above, and add a fun Frosted Jam name just for the spirit of the party.</p>
               <p className="nudge-words">Try words like Snowdrift · Blizzard · Frostbite · Arctic · Polar · Icicle</p>
-              <button type="button" className="secondary" onClick={editRsvp}>Add a Frosted Jam Name</button>
+              <button type="button" className="secondary" onClick={editRsvpForm}>Add a Frosted Jam Name</button>
             </div>}
           </>}
-          {rsvp !== 'declined' && !bringing.trim() && <p className="review-note">No food choice yet - that's completely fine. You can let Nancy or Rick know later.</p>}
+          {rsvp !== 'declined' && !bringing.trim() && <p className="review-note">No food choice yet - that's completely fine. You can decide later.</p>}
           {saveError && <p className="error" role="alert">{saveError}</p>}
-          <div className="review-actions">{!savedGuestId && <button type="button" className="secondary" onClick={editRsvp} disabled={saving}>Make a Change</button>}<button type="button" className="primary" onClick={saveConfirmedRsvp} disabled={saving}>{saving ? 'Saving...' : savedGuestId ? 'Retry Feast List Sync' : 'Looks Good - Save My RSVP'}</button></div>
+          <div className="review-actions"><button type="button" className="secondary" onClick={editRsvpForm} disabled={saving}>Make a Change</button><button type="button" className="primary" onClick={saveConfirmedRsvp} disabled={saving}>{saving ? 'Saving...' : editingGuestId ? 'Looks Good - Update My RSVP' : 'Looks Good - Save My RSVP'}</button></div>
+        </section>
+      </> : managedGuest && !editingGuestId ? <>
+        <div className="page-heading"><p className="kicker">Your RSVP</p><h2>Welcome Back</h2><p>You can change your RSVP, your guest or what you're bringing at any time from this browser.</p></div>
+        <section className="rsvp-success manage-rsvp">
+          <div className="review-line"><span>Guest{managedGuest.party_size > 1 ? 's' : ''}</span><b>{managedGuest.guest_name}{managedGuest.plus_one_name ? ` & ${managedGuest.plus_one_name}` : ''}</b></div>
+          <div className="review-line"><span>RSVP</span><b>{managedGuest.rsvp_status === 'coming' ? 'Coming' : managedGuest.rsvp_status === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
+          {managedGuest.bringing_item && <>
+            <div className="review-line"><span>Category</span><b>{managedGuest.food_category}</b></div>
+            <div className="review-line"><span>You're bringing</span><b>{managedGuest.bringing_item}</b></div>
+            {managedGuest.frosting_description && <div className="review-line frosted"><span>Frosted Jam name</span><b>{managedGuest.frosting_description}</b></div>}
+          </>}
+          {saveError && <p className="error" role="alert">{saveError}</p>}
+          {cancelConfirm ? <div className="cancel-confirm">
+            <b>Change your RSVP to Can't Make It?</b>
+            <p>This will also remove your food from the Frosted Feast. You can change your RSVP again later from this browser.</p>
+            <div className="review-actions"><button type="button" className="secondary" onClick={() => setCancelConfirm(false)} disabled={saving}>Keep My RSVP</button><button type="button" className="danger-button" onClick={markCannotCome} disabled={saving}>{saving ? 'Updating...' : "Yes - I Can't Make It"}</button></div>
+          </div> : <div className="review-actions">
+            <button type="button" className="primary" onClick={startEditingManagedRsvp}>Edit My RSVP</button>
+            {managedGuest.rsvp_status !== 'declined' && <button type="button" className="secondary" onClick={() => setCancelConfirm(true)}>I Can't Come Anymore</button>}
+          </div>}
         </section>
       </> : <>
-        <div className="page-heading"><p className="kicker">RSVP</p><h2>Tell Us If You're Coming</h2><p>You can also tell everyone what you plan to bring. It does not need to be final.</p></div>
+        <div className="page-heading"><p className="kicker">RSVP</p><h2>{editingGuestId ? 'Change Your RSVP' : "Tell Us If You're Coming"}</h2><p>{editingGuestId ? 'Update anything that has changed, then review it before saving.' : 'You can also tell everyone what you plan to bring. It does not need to be final.'}</p></div>
         <form onSubmit={reviewRsvp} className="rsvp-form">
           <div className="two"><label>Your name<input value={name} onChange={e => setName(e.target.value)} required maxLength={80} autoComplete="name" /></label><label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" maxLength={80} /></label></div>
           <fieldset><legend>Are you coming?</legend><div className="choices"><button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button><button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button><button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button></div></fieldset>
@@ -382,6 +466,7 @@ export default function App() {
           </div>}
           {saveError && <p className="error" role="alert">{saveError}</p>}
           <button className="primary" disabled={saving}>{saving ? 'Please wait...' : 'Review My RSVP'}</button>
+          {!editingGuestId && <p className="legacy-note">Already RSVP'd before the edit feature was added and this browser doesn't recognize it? Nancy or Rick can change that earlier RSVP for you.</p>}
         </form>
       </>}
     </section>}
