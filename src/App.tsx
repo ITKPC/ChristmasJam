@@ -150,37 +150,33 @@ export default function App() {
       <div className="jam-hero">
         <div className="jam-glow jam-glow-one" />
         <div className="jam-glow jam-glow-two" />
-        <div className="spark spark-a">✦</div><div className="spark spark-b">✧</div><div className="spark spark-c">❄</div>
         <p className="jam-kicker">2nd Annual Karaoke Jam · Frosted Edition</p>
         <h2><span>Turn Up the Music.</span><strong>Bring On the Frost.</strong></h2>
-        <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — this time louder, frostier and with a few surprises mixed in.</p>
+        <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — with a few games, prizes and frosty surprises mixed in.</p>
         <div className="jam-actions"><button className="primary big" onClick={() => setPage('rsvp')}>I'm Coming</button><button className="secondary big" onClick={() => setPage('coming')}>See Who's In</button></div>
         <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
       </div>
 
-      <div className="music-marquee" aria-hidden="true"><div>🎤 KARAOKE ALL NIGHT ✦ GAMES IN THE MIX ❄ PRIZES TO WIN ✦ FROSTED FOOD ❄ GOOD FRIENDS ✦ FESTIVE DRINKS ❄ </div></div>
-
       <section className="night-intro">
-        <p className="kicker">What Kind of Night Is This?</p>
-        <h3>Sing a little. Laugh a lot. Stay way too long.</h3>
-        <p>Grab the mic for one song or ten. Cheer everybody else on. Jump into a game. Win something ridiculous. Eat something frosted. The whole point is a house full of friends having a genuinely fun night together.</p>
+        <p className="kicker">The Night</p>
+        <h3>Sing a little. Sing a lot. Don't sing at all.</h3>
+        <p>Grab the mic if you feel like it, cheer everyone else on if you don't. We'll mix in a few fun games, some prizes and plenty of time to eat, laugh and hang out.</p>
       </section>
 
-      <section className="event-grid">
-        <article className="event-card karaoke-card"><span className="event-number">01</span><div className="event-icon">🎤</div><h3>Karaoke Is the Main Event</h3><p>Pick your song, grab the mic and go for it. Solo, duet, group anthem — serious talent is completely optional.</p><b>Like last year, only frostier.</b></article>
-        <article className="event-card games-card"><span className="event-number">02</span><div className="event-icon">✦</div><h3>A Few Games Will Break Out</h3><p>Nothing that takes over the whole night. Just enough playful chaos to get people laughing, competing and joining in.</p><b>Fast. Funny. No homework.</b></article>
-        <article className="event-card prizes-card"><span className="event-number">03</span><div className="event-icon">🏆</div><h3>There Will Be Prizes</h3><p>Some glory will be earned. Some may be completely undeserved. Either way, there will be winners.</p><b>Bragging rights included.</b></article>
+      <section className="event-strip">
+        <article><div className="event-icon">🎤</div><h3>Karaoke</h3><p>Solo, duet, group anthem or happily audience-only.</p></article>
+        <article><div className="event-icon">✦</div><h3>Games</h3><p>A few quick ones to keep the night playful.</p></article>
+        <article><div className="event-icon">🏆</div><h3>Prizes</h3><p>A little glory, a little nonsense, and some winners.</p></article>
       </section>
 
       <section className="frost-callout">
         <div><p className="kicker">The Frosted Twist</p><h3>Bring something delicious. Frost it your way.</h3></div>
-        <p>Give your food a frosty name, add an icy presentation, wear a little sparkle, go completely over the top — or do none of it. Creativity is encouraged. Pressure is not.</p>
+        <p>Give your food a frosty name, add an icy presentation, wear a little sparkle — or do none of it. Creativity is encouraged. Pressure is not.</p>
         <button className="secondary" onClick={() => setPage('ideas')}>See Frosty Ideas</button>
       </section>
 
       <section className="closing-hit">
-        <p>Good friends.</p><p>Great food.</p><p>Festive drinks.</p><p>Epic karaoke.</p>
-        <h3>Baby, it's cold inside.</h3>
+        <h3>Good friends. Great food. Epic karaoke.</h3>
         <button className="primary big" onClick={() => setPage('rsvp')}>Count Me In</button>
       </section>
     </section>}
@@ -233,6 +229,6 @@ export default function App() {
       <div className="word-bank"><b>Try words like</b><span>Snow · Frost · Ice · Blizzard · Polar · Frozen · Snowdrift · Cold Snap · Icicle · Arctic · Winter · North Pole</span></div>
     </section>}
 
-    <footer>Good Friends ❄ Great Food ❄ Festive Drinks ❄ Epic Karaoke</footer>
+    <footer>Good Friends ❄ Great Food ❄ Epic Karaoke</footer>
   </main>
 }
