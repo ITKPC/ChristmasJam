@@ -150,23 +150,23 @@ export default function App() {
       <div className="jam-hero">
         <div className="jam-glow jam-glow-one" />
         <div className="jam-glow jam-glow-two" />
-        <p className="jam-kicker">2nd Annual Karaoke Jam · Frosted Edition</p>
+        <p className="jam-kicker">Baby, It's Cold Inside · 2nd Annual Karaoke Jam</p>
         <h2><span>Turn Up the Music.</span><strong>Bring On the Frost.</strong></h2>
-        <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — with a few games, prizes and frosty surprises mixed in.</p>
+        <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — frosted, playful and with a few surprises mixed in.</p>
         <div className="jam-actions"><button className="primary big" onClick={() => setPage('rsvp')}>I'm Coming</button><button className="secondary big" onClick={() => setPage('coming')}>See Who's In</button></div>
         <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
       </div>
 
       <section className="night-intro">
-        <p className="kicker">The Night</p>
-        <h3>Sing a little. Sing a lot. Don't sing at all.</h3>
-        <p>Grab the mic if you feel like it, cheer everyone else on if you don't. We'll mix in a few fun games, some prizes and plenty of time to eat, laugh and hang out.</p>
+        <p className="kicker">Karaoke</p>
+        <h3>Sing a Little. Sing a Lot. Don't Sing at All.</h3>
+        <p>Grab the mic if you feel like it. Sing one song, sing all night, join a duet or simply cheer everyone else on. There is no performance requirement here.</p>
       </section>
 
-      <section className="event-strip">
-        <article><div className="event-icon">🎤</div><h3>Karaoke</h3><p>Solo, duet, group anthem or happily audience-only.</p></article>
-        <article><div className="event-icon">✦</div><h3>Games</h3><p>A few quick ones to keep the night playful.</p></article>
-        <article><div className="event-icon">🏆</div><h3>Prizes</h3><p>A little glory, a little nonsense, and some winners.</p></article>
+      <section className="night-intro">
+        <p className="kicker">Games + Prizes</p>
+        <h3>A Few Games. A Few Prizes. Plenty of Laughs.</h3>
+        <p>We'll mix in a few quick, easy games during the night. Join in when you want, sit one out when you don't, and there will be prizes worth claiming along the way.</p>
       </section>
 
       <section className="frost-callout">
