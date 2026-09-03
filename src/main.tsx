@@ -4,6 +4,7 @@ import App from './App'
 import './styles.css'
 import './refinements.css'
 import './jammy-size.css'
+import './rsvp-review.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
