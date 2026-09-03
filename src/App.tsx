@@ -10,6 +10,9 @@ type Guest = {
   party_size: number
   is_host: boolean
   rsvp_status: Rsvp
+  food_category: string | null
+  bringing_item: string | null
+  frosting_description: string | null
 }
 type Contribution = {
   id: string
@@ -17,6 +20,15 @@ type Contribution = {
   category: string
   item_name: string
   frosting_description: string | null
+}
+type SavedSummary = {
+  guestName: string
+  plusOneName: string
+  partySize: number
+  rsvpStatus: Rsvp
+  category: string
+  itemName: string
+  frostedName: string
 }
 
 const PARTY_CODE = 'Frosty26'
@@ -36,6 +48,10 @@ const navItems: { id: Page; label: string }[] = [
   { id: 'ideas', label: 'Frosty Ideas' },
 ]
 
+function isFoodGroup(value: string): value is (typeof FOOD_GROUPS)[number] {
+  return FOOD_GROUPS.includes(value as (typeof FOOD_GROUPS)[number])
+}
+
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem('frosted-jam-unlocked') === 'yes')
   const [page, setPage] = useState<Page>('jam')
@@ -43,28 +59,55 @@ export default function App() {
   const [gateError, setGateError] = useState('')
   const [guests, setGuests] = useState<Guest[]>([])
   const [contributions, setContributions] = useState<Contribution[]>([])
-  const [loading, setLoading] = useState(false)
+  const [partyLoading, setPartyLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [name, setName] = useState('')
   const [plusOne, setPlusOne] = useState('')
   const [rsvp, setRsvp] = useState<Rsvp>('coming')
   const [category, setCategory] = useState('')
   const [bringing, setBringing] = useState('')
-  const [frosting, setFrosting] = useState('')
+  const [frostedName, setFrostedName] = useState('')
+  const [reviewing, setReviewing] = useState(false)
+  const [savedGuestId, setSavedGuestId] = useState<string | null>(null)
+  const [savedSummary, setSavedSummary] = useState<SavedSummary | null>(null)
 
   const coming = useMemo(() => guests.filter(g => g.rsvp_status === 'coming').reduce((sum, g) => sum + g.party_size, 0), [guests])
   const maybe = useMemo(() => guests.filter(g => g.rsvp_status === 'maybe').reduce((sum, g) => sum + g.party_size, 0), [guests])
   const guestById = useMemo(() => new Map(guests.map(g => [g.id, g])), [guests])
 
+  const feastContributions = useMemo(() => {
+    const merged = [...contributions]
+    const guestsWithContribution = new Set(contributions.map(c => c.guest_entry_id))
+
+    for (const guest of guests) {
+      if (guestsWithContribution.has(guest.id)) continue
+      if (!guest.bringing_item || !guest.food_category || !isFoodGroup(guest.food_category)) continue
+      merged.push({
+        id: `guest-backup-${guest.id}`,
+        guest_entry_id: guest.id,
+        category: guest.food_category,
+        item_name: guest.bringing_item,
+        frosting_description: guest.frosting_description,
+      })
+    }
+
+    return merged
+  }, [contributions, guests])
+
   async function loadParty() {
-    setLoading(true)
+    setPartyLoading(true)
+    setLoadError('')
     const [{ data: guestData, error: guestError }, { data: foodData, error: foodError }] = await Promise.all([
-      supabase.from('guest_entries').select('id,guest_name,plus_one_name,party_size,is_host,rsvp_status').order('is_host', { ascending: false }).order('created_at'),
+      supabase.from('guest_entries').select('id,guest_name,plus_one_name,party_size,is_host,rsvp_status,food_category,bringing_item,frosting_description').order('is_host', { ascending: false }).order('created_at'),
       supabase.from('contributions').select('id,guest_entry_id,category,item_name,frosting_description').order('created_at'),
     ])
-    if (!guestError && guestData) setGuests(guestData as Guest[])
-    if (!foodError && foodData) setContributions(foodData as Contribution[])
-    setLoading(false)
+
+    if (guestData) setGuests(guestData as Guest[])
+    if (foodData) setContributions(foodData as Contribution[])
+    if (guestError || foodError) setLoadError('We could not refresh all of the party information. Please try again in a moment.')
+    setPartyLoading(false)
   }
 
   useEffect(() => {
@@ -88,44 +131,142 @@ export default function App() {
     setUnlocked(true)
   }
 
-  async function save(e: FormEvent) {
+  function validateRsvp() {
+    const cleanName = name.trim()
+    const cleanPlusOne = plusOne.trim()
+    const cleanFood = bringing.trim()
+    const cleanFrostedName = frostedName.trim()
+
+    if (!cleanName) return 'Please add your name.'
+    if (cleanName.length > 80) return 'Please keep your name to 80 characters or fewer.'
+    if (cleanPlusOne.length > 80) return 'Please keep your guest name to 80 characters or fewer.'
+
+    if (rsvp !== 'declined') {
+      if (category && !isFoodGroup(category)) return 'Please choose a valid food category.'
+      if (cleanFood && !category) return "You told us what you're bringing - just choose which food category it belongs in."
+      if (category && !cleanFood) return "You've chosen a food category - now tell us what you're bringing, or clear the category if you're deciding later."
+      if (cleanFood.length > 200) return 'Please keep the food name to 200 characters or fewer.'
+      if (cleanFrostedName && !cleanFood) return 'Add the real food name first, then give it a Frosted Jam name if you want.'
+      if (cleanFrostedName.length > 120) return 'Please keep the Frosted Jam name to 120 characters or fewer.'
+    }
+
+    return ''
+  }
+
+  function reviewRsvp(e: FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    if (saving) return
+    const error = validateRsvp()
+    if (error) {
+      setSaveError(error)
+      return
+    }
     setSaveError('')
-    setLoading(true)
+    setReviewing(true)
+    setSavedSummary(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
-    const { data: guest, error } = await supabase.from('guest_entries').insert({
-      guest_name: name.trim(),
-      plus_one_name: plusOne.trim() || null,
-      party_size: plusOne.trim() ? 2 : 1,
-      is_host: false,
-      rsvp_status: rsvp,
-    }).select('id').single()
+  function editRsvp() {
+    if (saving) return
+    setReviewing(false)
+    setSaveError('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
-    if (error || !guest) {
-      setSaveError('Your RSVP did not save. Please try again.')
-      setLoading(false)
+  async function saveConfirmedRsvp() {
+    if (saving) return
+    const validationError = validateRsvp()
+    if (validationError) {
+      setSaveError(validationError)
+      setReviewing(false)
       return
     }
 
-    if (rsvp !== 'declined' && category && bringing.trim()) {
-      const { error: contributionError } = await supabase.from('contributions').insert({
-        guest_entry_id: guest.id,
-        category,
-        item_name: bringing.trim(),
-        frosting_description: frosting.trim() || null,
-      })
-      if (contributionError) setSaveError('Your RSVP saved, but the food item did not. You can tell Nancy or Rick what you are bringing.')
+    const cleanName = name.trim()
+    const cleanPlusOne = plusOne.trim()
+    const cleanFood = rsvp === 'declined' ? '' : bringing.trim()
+    const cleanFrostedName = rsvp === 'declined' ? '' : frostedName.trim()
+    const cleanCategory = rsvp === 'declined' ? '' : category
+    const partySize = cleanPlusOne ? 2 : 1
+
+    setSaveError('')
+    setSaving(true)
+
+    let guestId = savedGuestId
+
+    if (!guestId) {
+      const { data: guest, error: guestError } = await supabase.from('guest_entries').insert({
+        guest_name: cleanName,
+        plus_one_name: cleanPlusOne || null,
+        party_size: partySize,
+        is_host: false,
+        rsvp_status: rsvp,
+        food_category: cleanCategory || null,
+        bringing_item: cleanFood || null,
+        frosting_description: cleanFrostedName || null,
+      }).select('id').single()
+
+      if (guestError || !guest) {
+        setSaveError('Your RSVP did not save. Nothing has been cleared - please try again.')
+        setSaving(false)
+        return
+      }
+
+      guestId = guest.id
+      setSavedGuestId(guest.id)
     }
+
+    if (cleanCategory && cleanFood) {
+      const { data: existingFood, error: verifyError } = await supabase
+        .from('contributions')
+        .select('id')
+        .eq('guest_entry_id', guestId)
+        .limit(1)
+
+      if (verifyError) {
+        setSaveError('Your RSVP and food are safely captured, but we could not verify the feast list. Please tap Save again to retry the list sync.')
+        setSaving(false)
+        return
+      }
+
+      if (!existingFood?.length) {
+        const { data: savedFood, error: contributionError } = await supabase.from('contributions').insert({
+          guest_entry_id: guestId,
+          category: cleanCategory,
+          item_name: cleanFood,
+          frosting_description: cleanFrostedName || null,
+        }).select('id').single()
+
+        if (contributionError || !savedFood) {
+          setSaveError('Your RSVP and food are safely captured, but the feast list did not sync yet. Nothing was lost - please tap Save again to retry.')
+          setSaving(false)
+          return
+        }
+      }
+    }
+
+    setSavedSummary({
+      guestName: cleanName,
+      plusOneName: cleanPlusOne,
+      partySize,
+      rsvpStatus: rsvp,
+      category: cleanCategory,
+      itemName: cleanFood,
+      frostedName: cleanFrostedName,
+    })
+    setSavedGuestId(null)
+    setSaving(false)
+    setReviewing(false)
 
     setName('')
     setPlusOne('')
     setRsvp('coming')
     setCategory('')
     setBringing('')
-    setFrosting('')
+    setFrostedName('')
     await loadParty()
-    setPage('coming')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (!unlocked) {
@@ -140,7 +281,7 @@ export default function App() {
         <form onSubmit={enter} className="code-form">
           <label>Party code</label>
           <div className="code-row"><input value={code} onChange={e => setCode(e.target.value)} placeholder="Party code" /><button>Come On In</button></div>
-          {gateError && <p className="error">{gateError}</p>}
+          {gateError && <p className="error" role="alert">{gateError}</p>}
         </form>
       </section>
     </main>
@@ -197,22 +338,58 @@ export default function App() {
     </section>}
 
     {page === 'rsvp' && <section className="content-page narrow">
-      <div className="page-heading"><p className="kicker">RSVP</p><h2>Tell Us If You're Coming</h2><p>You can also tell everyone what you plan to bring. It does not need to be final.</p></div>
-      <form onSubmit={save} className="rsvp-form">
-        <div className="two"><label>Your name<input value={name} onChange={e => setName(e.target.value)} required /></label><label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" /></label></div>
-        <fieldset><legend>Are you coming?</legend><div className="choices"><button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button><button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button><button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button></div></fieldset>
-        {rsvp !== 'declined' && <div className="food-fields">
-          <div className="two"><label>What kind of contribution?<select value={category} onChange={e => setCategory(e.target.value)}><option value="">Choose if you know</option>{FOOD_GROUPS.map(group => <option key={group}>{group}</option>)}</select></label><label>What are you bringing?<input value={bringing} onChange={e => setBringing(e.target.value)} placeholder="It can change later" /></label></div>
-          <label>How are you frosting it? <small>Optional</small><textarea value={frosting} onChange={e => setFrosting(e.target.value)} placeholder="A frosty name, presentation, decoration—or leave this blank." /></label>
-        </div>}
-        {saveError && <p className="error">{saveError}</p>}
-        <button className="primary" disabled={loading}>{loading ? 'Saving…' : 'Save My RSVP'}</button>
-      </form>
+      {savedSummary ? <>
+        <div className="page-heading"><p className="kicker">RSVP Saved</p><h2>You're In</h2><p>Here is exactly what we saved.</p></div>
+        <section className="rsvp-success" aria-live="polite">
+          <div className="review-line"><span>Guest{savedSummary.partySize > 1 ? 's' : ''}</span><b>{savedSummary.guestName}{savedSummary.plusOneName ? ` & ${savedSummary.plusOneName}` : ''}</b></div>
+          <div className="review-line"><span>RSVP</span><b>{savedSummary.rsvpStatus === 'coming' ? 'Coming' : savedSummary.rsvpStatus === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
+          {savedSummary.itemName && <>
+            <div className="review-line"><span>Category</span><b>{savedSummary.category}</b></div>
+            <div className="review-line"><span>You're bringing</span><b>{savedSummary.itemName}</b></div>
+            {savedSummary.frostedName && <div className="review-line frosted"><span>Frosted Jam name</span><b>{savedSummary.frostedName}</b></div>}
+          </>}
+          {!savedSummary.itemName && savedSummary.rsvpStatus !== 'declined' && <p className="review-note">No food choice yet - that's completely fine.</p>}
+          <div className="review-actions"><button className="primary" type="button" onClick={() => go('coming')}>See Who's Coming</button><button className="secondary" type="button" onClick={() => go('feast')}>See the Frosted Feast</button></div>
+        </section>
+      </> : reviewing ? <>
+        <div className="page-heading"><p className="kicker">One Quick Check</p><h2>Before We Save It...</h2><p>Make sure this is exactly what you meant to send us.</p></div>
+        <section className="rsvp-review">
+          <div className="review-line"><span>Guest{plusOne.trim() ? 's' : ''}</span><b>{name.trim()}{plusOne.trim() ? ` & ${plusOne.trim()}` : ''}</b></div>
+          <div className="review-line"><span>RSVP</span><b>{rsvp === 'coming' ? 'Coming' : rsvp === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
+          {rsvp !== 'declined' && bringing.trim() && <>
+            <div className="review-line"><span>Category</span><b>{category}</b></div>
+            <div className="review-line"><span>You're bringing</span><b>{bringing.trim()}</b></div>
+            {frostedName.trim() && <div className="review-line frosted"><span>Frosted Jam name</span><b>{frostedName.trim()}</b></div>}
+            {!frostedName.trim() && !savedGuestId && <div className="frost-name-nudge">
+              <b>Want to frost up the name?</b>
+              <p>Totally optional. Keep the real food name above, and add a fun Frosted Jam name just for the spirit of the party.</p>
+              <p className="nudge-words">Try words like Snowdrift · Blizzard · Frostbite · Arctic · Polar · Icicle</p>
+              <button type="button" className="secondary" onClick={editRsvp}>Add a Frosted Jam Name</button>
+            </div>}
+          </>}
+          {rsvp !== 'declined' && !bringing.trim() && <p className="review-note">No food choice yet - that's completely fine. You can let Nancy or Rick know later.</p>}
+          {saveError && <p className="error" role="alert">{saveError}</p>}
+          <div className="review-actions">{!savedGuestId && <button type="button" className="secondary" onClick={editRsvp} disabled={saving}>Make a Change</button>}<button type="button" className="primary" onClick={saveConfirmedRsvp} disabled={saving}>{saving ? 'Saving...' : savedGuestId ? 'Retry Feast List Sync' : 'Looks Good - Save My RSVP'}</button></div>
+        </section>
+      </> : <>
+        <div className="page-heading"><p className="kicker">RSVP</p><h2>Tell Us If You're Coming</h2><p>You can also tell everyone what you plan to bring. It does not need to be final.</p></div>
+        <form onSubmit={reviewRsvp} className="rsvp-form">
+          <div className="two"><label>Your name<input value={name} onChange={e => setName(e.target.value)} required maxLength={80} autoComplete="name" /></label><label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" maxLength={80} /></label></div>
+          <fieldset><legend>Are you coming?</legend><div className="choices"><button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button><button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button><button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button></div></fieldset>
+          {rsvp !== 'declined' && <div className="food-fields">
+            <div className="two"><label>What kind of contribution?<select value={category} onChange={e => setCategory(e.target.value)}><option value="">Choose if you know</option>{FOOD_GROUPS.map(group => <option key={group}>{group}</option>)}</select></label><label>What are you actually bringing?<input value={bringing} onChange={e => setBringing(e.target.value)} placeholder="e.g. Butter Tarts" maxLength={200} /></label></div>
+            <label>Frosted Jam name <small>Optional</small><input value={frostedName} onChange={e => setFrostedName(e.target.value)} placeholder="e.g. Blizzard Butter Tarts" maxLength={120} /><span className="field-help">Keep the real food name above. This is just the fun party name.</span></label>
+          </div>}
+          {saveError && <p className="error" role="alert">{saveError}</p>}
+          <button className="primary" disabled={saving}>{saving ? 'Please wait...' : 'Review My RSVP'}</button>
+        </form>
+      </>}
     </section>}
 
     {page === 'coming' && <section className="content-page">
       <div className="page-heading"><p className="kicker">The Guest List</p><h2>Who's Coming</h2><p>{coming} confirmed{maybe ? ` · ${maybe} maybe` : ''}</p></div>
-      {loading ? <p className="loading">Loading the party…</p> : <div className="people-list">
+      {loadError && <p className="error" role="alert">{loadError}</p>}
+      {partyLoading ? <p className="loading">Loading the party…</p> : <div className="people-list">
         {guests.filter(g => g.rsvp_status !== 'declined').map(g => <article key={g.id} className={g.is_host ? 'person host-person' : 'person'}>
           <div className="avatar-mark">{g.is_host ? '❄' : g.guest_name.charAt(0).toUpperCase()}</div>
           <div><h3>{g.guest_name}{g.plus_one_name ? ` & ${g.plus_one_name}` : ''}</h3><p>{g.is_host ? 'Hosts' : g.rsvp_status === 'coming' ? 'Coming' : 'Maybe'}</p></div>
@@ -222,13 +399,14 @@ export default function App() {
 
     {page === 'feast' && <section className="content-page">
       <div className="page-heading"><p className="kicker">What Everyone's Bringing</p><h2>The Frosted Feast</h2><p>A quick look at the table so we can see the delicious plan taking shape.</p></div>
-      {loading ? <p className="loading">Checking the feast…</p> : <div className="feast-list">
+      {loadError && <p className="error" role="alert">{loadError}</p>}
+      {partyLoading ? <p className="loading">Checking the feast…</p> : <div className="feast-list">
         {FOOD_GROUPS.map(group => {
-          const items = contributions.filter(c => c.category === group)
+          const items = feastContributions.filter(c => c.category === group)
           if (!items.length) return null
           return <section key={group} className="feast-group"><h3>{FOOD_LABELS[group]}</h3>{items.map(item => {
             const person = guestById.get(item.guest_entry_id)
-            return <article className="feast-row" key={item.id}><div><h4>{item.item_name}</h4>{item.frosting_description && <p>{item.frosting_description}</p>}</div><span>{person?.guest_name || 'Guest'}{person?.is_host ? ' · Hosts' : ''}</span></article>
+            return <article className="feast-row" key={item.id}><div>{item.frosting_description ? <><h4>{item.frosting_description}</h4><p className="real-food-name">{item.item_name}</p></> : <h4>{item.item_name}</h4>}</div><span>{person?.guest_name || 'Guest'}{person?.is_host ? ' · Hosts' : ''}</span></article>
           })}</section>
         })}
       </div>}
