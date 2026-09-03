@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
+import { JAMMY_HERO } from './jammy'
 
 type Rsvp = 'coming' | 'maybe' | 'declined'
 type Page = 'jam' | 'rsvp' | 'coming' | 'feast' | 'ideas'
@@ -21,6 +22,13 @@ type Contribution = {
 
 const PARTY_CODE = 'Frosty26'
 const FOOD_GROUPS = ['Appetizer', 'Main', 'Side', 'Dessert', 'Other'] as const
+const FOOD_LABELS: Record<(typeof FOOD_GROUPS)[number], string> = {
+  Appetizer: 'Appetizers',
+  Main: 'Mains',
+  Side: 'Sides',
+  Dessert: 'Desserts',
+  Other: 'Other',
+}
 const navItems: { id: Page; label: string }[] = [
   { id: 'jam', label: 'The Jam' },
   { id: 'rsvp', label: 'RSVP' },
@@ -63,6 +71,12 @@ export default function App() {
   useEffect(() => {
     if (unlocked) loadParty()
   }, [unlocked])
+
+  function go(next: Page) {
+    setPage(next)
+    if (next === 'coming' || next === 'feast') loadParty()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   function enter(e: FormEvent) {
     e.preventDefault()
@@ -126,7 +140,7 @@ export default function App() {
         <p className="hosts">Hosted by Nancy & Rick</p>
         <form onSubmit={enter} className="code-form">
           <label>Party code</label>
-          <div className="code-row"><input value={code} onChange={e => setCode(e.target.value)} placeholder="Frosty26" /><button>Come On In</button></div>
+          <div className="code-row"><input value={code} onChange={e => setCode(e.target.value)} placeholder="Party code" /><button>Come On In</button></div>
           {gateError && <p className="error">{gateError}</p>}
         </form>
       </section>
@@ -135,7 +149,7 @@ export default function App() {
 
   return <main className="app-shell">
     <header className="site-header">
-      <button className="brand" onClick={() => setPage('jam')}>
+      <button className="brand" onClick={() => go('jam')}>
         <span>A Frosted Jam</span>
         <small>December 12 · 6:00 PM</small>
       </button>
@@ -143,36 +157,43 @@ export default function App() {
     </header>
 
     <nav className="nav" aria-label="Party pages">
-      {navItems.map(item => <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => { setPage(item.id); if (item.id === 'coming' || item.id === 'feast') loadParty() }}>{item.label}</button>)}
+      {navItems.map(item => <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => go(item.id)}>{item.label}</button>)}
     </nav>
 
     {page === 'jam' && <section className="jam-page">
-      <div className="jam-hero">
-        <div className="jam-glow jam-glow-one" />
-        <div className="jam-glow jam-glow-two" />
-        <p className="jam-kicker">A Frosted Jam</p>
-        <h2><span>Baby, It's Cold Inside.</span><strong>Bring On the Frost.</strong></h2>
-        <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — frosted, playful and with a few surprises mixed in.</p>
-        <div className="jam-actions"><button className="primary big" onClick={() => setPage('rsvp')}>I'm Coming</button><button className="secondary big" onClick={() => setPage('coming')}>See Who's In</button></div>
-        <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
-      </div>
-
-      <section className="night-intro">
-        <p className="kicker">Karaoke</p>
-        <h3>Sing a Little. Sing a Lot. Don't Sing at All.</h3>
-        <p>Grab the mic if you feel like it. Sing one song, sing all night, join a duet or simply cheer everyone else on. There is no performance requirement here.</p>
+      <section className="jam-hero">
+        <div className="hero-copy">
+          <p className="jam-kicker">A Frosted Jam</p>
+          <h2><span>Baby, It's</span><span>Cold Inside</span></h2>
+          <p className="hero-script">A Frosted Jam</p>
+          <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — music, laughter, a little friendly chaos and plenty of frosty fun.</p>
+          <div className="jam-actions"><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('coming')}>Who's Coming</button></div>
+          <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
+        </div>
+        <div className="jammy-wrap" aria-label="Jammy, the Frosted Jam mascot">
+          <img className="jammy-art" src={JAMMY_HERO} alt="Jammy holding a karaoke microphone" />
+          <p className="jammy-note">See you at The Jam!<span>— Jammy</span></p>
+        </div>
       </section>
 
-      <section className="night-intro">
-        <p className="kicker">Games + Prizes</p>
-        <h3>A Few Games. A Few Prizes. Plenty of Laughs.</h3>
-        <p>We'll mix in a few quick, easy games during the night. Join in when you want, sit one out when you don't, and there will be prizes worth claiming along the way.</p>
+      <section className="jam-highlights">
+        <article>
+          <p className="kicker">Karaoke</p>
+          <h3>Sing a Little.<br />Sing a Lot.<br />Don't Sing at All.</h3>
+          <p>Karaoke is for everyone — whether you're in the spotlight or happily enjoying the show.</p>
+        </article>
+        <div className="highlight-divider" aria-hidden="true">❄</div>
+        <article>
+          <p className="kicker">Games + Prizes</p>
+          <h3>A Few Games.<br />A Few Prizes.<br />Plenty of Laughs.</h3>
+          <p>Jump in, cheer on, or sit one out. The games are there to add a little fun, not take over the night.</p>
+        </article>
       </section>
 
       <section className="frost-callout">
         <div><p className="kicker">The Frosted Twist</p><h3>Bring something delicious. Frost it your way.</h3></div>
         <p>Give your food a frosty name, add an icy presentation, wear a little sparkle — or do none of it. Creativity is encouraged. Pressure is not.</p>
-        <button className="secondary" onClick={() => setPage('ideas')}>See Frosty Ideas</button>
+        <button className="secondary" onClick={() => go('ideas')}>See Frosty Ideas</button>
       </section>
     </section>}
 
@@ -206,7 +227,7 @@ export default function App() {
         {FOOD_GROUPS.map(group => {
           const items = contributions.filter(c => c.category === group)
           if (!items.length) return null
-          return <section key={group} className="feast-group"><h3>{group}</h3>{items.map(item => {
+          return <section key={group} className="feast-group"><h3>{FOOD_LABELS[group]}</h3>{items.map(item => {
             const person = guestById.get(item.guest_entry_id)
             return <article className="feast-row" key={item.id}><div><h4>{item.item_name}</h4>{item.frosting_description && <p>{item.frosting_description}</p>}</div><span>{person?.guest_name || 'Guest'}{person?.is_host ? ' · Hosts' : ''}</span></article>
           })}</section>
