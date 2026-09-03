@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
-import { JAMMY_HERO } from './jammy'
 
 type Rsvp = 'coming' | 'maybe' | 'declined'
 type Page = 'jam' | 'rsvp' | 'coming' | 'feast' | 'ideas'
@@ -171,7 +170,7 @@ export default function App() {
           <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
         </div>
         <div className="jammy-wrap" aria-label="Jammy, the Frosted Jam mascot">
-          <img className="jammy-art" src={JAMMY_HERO} alt="Jammy holding a karaoke microphone" />
+          <img className="jammy-art" src="/Jammy.png" alt="Jammy holding a karaoke microphone" />
           <p className="jammy-note">See you at The Jam!<span>— Jammy</span></p>
         </div>
       </section>
