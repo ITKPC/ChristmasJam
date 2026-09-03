@@ -20,6 +20,7 @@ type Contribution = {
 }
 
 const PARTY_CODE = 'Frosty26'
+const FOOD_GROUPS = ['Appetizer', 'Main', 'Side', 'Dessert', 'Other'] as const
 const navItems: { id: Page; label: string }[] = [
   { id: 'jam', label: 'The Jam' },
   { id: 'rsvp', label: 'RSVP' },
@@ -190,7 +191,7 @@ export default function App() {
         <div className="two"><label>Your name<input value={name} onChange={e => setName(e.target.value)} required /></label><label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" /></label></div>
         <fieldset><legend>Are you coming?</legend><div className="choices"><button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button><button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button><button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button></div></fieldset>
         {rsvp !== 'declined' && <div className="food-fields">
-          <div className="two"><label>What kind of contribution?<select value={category} onChange={e => setCategory(e.target.value)}><option value="">Choose if you know</option><option>Appetizer</option><option>Main</option><option>Side</option><option>Dessert</option><option>Drink</option><option>Snack</option><option>Other</option></select></label><label>What are you bringing?<input value={bringing} onChange={e => setBringing(e.target.value)} placeholder="It can change later" /></label></div>
+          <div className="two"><label>What kind of contribution?<select value={category} onChange={e => setCategory(e.target.value)}><option value="">Choose if you know</option>{FOOD_GROUPS.map(group => <option key={group}>{group}</option>)}</select></label><label>What are you bringing?<input value={bringing} onChange={e => setBringing(e.target.value)} placeholder="It can change later" /></label></div>
           <label>How are you frosting it? <small>Optional</small><textarea value={frosting} onChange={e => setFrosting(e.target.value)} placeholder="A frosty name, presentation, decoration—or leave this blank." /></label>
         </div>}
         {saveError && <p className="error">{saveError}</p>}
@@ -211,7 +212,7 @@ export default function App() {
     {page === 'feast' && <section className="content-page">
       <div className="page-heading"><p className="kicker">What Everyone's Bringing</p><h2>The Frosted Feast</h2><p>A quick look at the table so we can see the delicious plan taking shape.</p></div>
       {loading ? <p className="loading">Checking the feast…</p> : <div className="feast-list">
-        {['Appetizer','Main','Side','Dessert','Drink','Snack','Other'].map(group => {
+        {FOOD_GROUPS.map(group => {
           const items = contributions.filter(c => c.category === group)
           if (!items.length) return null
           return <section key={group} className="feast-group"><h3>{group}</h3>{items.map(item => {
