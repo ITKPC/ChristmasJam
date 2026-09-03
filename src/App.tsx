@@ -145,14 +145,43 @@ export default function App() {
       {navItems.map(item => <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => { setPage(item.id); if (item.id === 'coming' || item.id === 'feast') loadParty() }}>{item.label}</button>)}
     </nav>
 
-    {page === 'jam' && <section className="home-page">
-      <div className="home-hero">
-        <p className="kicker">Baby, It's Cold Inside</p>
-        <h2>A Frosted Jam</h2>
-        <p className="home-copy">Come for the food. Stay for the karaoke. Add as much—or as little—frost as feels fun.</p>
-        <div className="home-actions"><button className="primary" onClick={() => setPage('rsvp')}>RSVP</button><button className="secondary" onClick={() => setPage('ideas')}>Get Frosty Ideas</button></div>
+    {page === 'jam' && <section className="jam-page">
+      <div className="jam-hero">
+        <div className="jam-glow jam-glow-one" />
+        <div className="jam-glow jam-glow-two" />
+        <div className="spark spark-a">✦</div><div className="spark spark-b">✧</div><div className="spark spark-c">❄</div>
+        <p className="jam-kicker">2nd Annual Karaoke Jam · Frosted Edition</p>
+        <h2><span>Turn Up the Music.</span><strong>Bring On the Frost.</strong></h2>
+        <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — this time louder, frostier and with a few surprises mixed in.</p>
+        <div className="jam-actions"><button className="primary big" onClick={() => setPage('rsvp')}>I'm Coming</button><button className="secondary big" onClick={() => setPage('coming')}>See Who's In</button></div>
+        <div className="jam-date"><b>Saturday, December 12</b><span>6:00 PM · Nancy & Rick's</span></div>
       </div>
-      <div className="home-note"><span>❄</span><p>Frost the food, the name, the presentation, yourself—or none of the above. No pressure. Just fun.</p></div>
+
+      <div className="music-marquee" aria-hidden="true"><div>🎤 KARAOKE ALL NIGHT ✦ GAMES IN THE MIX ❄ PRIZES TO WIN ✦ FROSTED FOOD ❄ GOOD FRIENDS ✦ FESTIVE DRINKS ❄ </div></div>
+
+      <section className="night-intro">
+        <p className="kicker">What Kind of Night Is This?</p>
+        <h3>Sing a little. Laugh a lot. Stay way too long.</h3>
+        <p>Grab the mic for one song or ten. Cheer everybody else on. Jump into a game. Win something ridiculous. Eat something frosted. The whole point is a house full of friends having a genuinely fun night together.</p>
+      </section>
+
+      <section className="event-grid">
+        <article className="event-card karaoke-card"><span className="event-number">01</span><div className="event-icon">🎤</div><h3>Karaoke Is the Main Event</h3><p>Pick your song, grab the mic and go for it. Solo, duet, group anthem — serious talent is completely optional.</p><b>Like last year, only frostier.</b></article>
+        <article className="event-card games-card"><span className="event-number">02</span><div className="event-icon">✦</div><h3>A Few Games Will Break Out</h3><p>Nothing that takes over the whole night. Just enough playful chaos to get people laughing, competing and joining in.</p><b>Fast. Funny. No homework.</b></article>
+        <article className="event-card prizes-card"><span className="event-number">03</span><div className="event-icon">🏆</div><h3>There Will Be Prizes</h3><p>Some glory will be earned. Some may be completely undeserved. Either way, there will be winners.</p><b>Bragging rights included.</b></article>
+      </section>
+
+      <section className="frost-callout">
+        <div><p className="kicker">The Frosted Twist</p><h3>Bring something delicious. Frost it your way.</h3></div>
+        <p>Give your food a frosty name, add an icy presentation, wear a little sparkle, go completely over the top — or do none of it. Creativity is encouraged. Pressure is not.</p>
+        <button className="secondary" onClick={() => setPage('ideas')}>See Frosty Ideas</button>
+      </section>
+
+      <section className="closing-hit">
+        <p>Good friends.</p><p>Great food.</p><p>Festive drinks.</p><p>Epic karaoke.</p>
+        <h3>Baby, it's cold inside.</h3>
+        <button className="primary big" onClick={() => setPage('rsvp')}>Count Me In</button>
+      </section>
     </section>}
 
     {page === 'rsvp' && <section className="content-page narrow">
