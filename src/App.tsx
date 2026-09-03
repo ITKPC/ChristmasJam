@@ -348,7 +348,7 @@ export default function App() {
           <h2><span>Baby, It's</span><span>Cold Inside</span></h2>
           <p className="hero-script">A Frosted Jam</p>
           <p className="jam-lead">Last year's karaoke was so much fun we're doing it again — music, laughter, a little friendly chaos and plenty of frosty fun.</p>
-          <div className="jam-actions"><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('edit')}>Edit My RSVP</button><button className="secondary big" onClick={() => go('coming')}>See Who's Coming</button><button className="secondary big" onClick={() => go('feast')}>Who's Bringing What</button></div>
+          <div className="jam-actions"><button className="secondary big" onClick={() => go('coming')}>See Who's Coming</button><button className="secondary big" onClick={() => go('feast')}>Who's Bringing What</button><button className="primary big" onClick={() => go('rsvp')}>RSVP</button><button className="secondary big" onClick={() => go('edit')}>Edit My RSVP</button></div>
           <div className="jam-date"><b>Saturday, December 12, 2026</b><span>6:00 PM · Nancy & Rick's</span></div>
         </div>
         <div className="jammy-wrap" aria-label="Jammy, the Frosted Jam mascot">
