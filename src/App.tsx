@@ -459,11 +459,10 @@ export default function App() {
     {page === 'ideas' && <section className="content-page">
       <div className="page-heading"><p className="kicker">Need Inspiration?</p><h2>Frosty Ideas</h2><p>Borrow the mood, not the menu. These are just sparks to get you thinking.</p></div>
       <div className="idea-grid">
-        <article><div className="idea-symbol">❄</div><h3>Frost Your Food</h3><p>Use snowy toppings, icy blue accents, sparkling presentation, chilled serving pieces, or a wintery garnish.</p></article>
-        <article><div className="idea-symbol">✦</div><h3>Give It a Frosty Name</h3><div className="name-list"><span>Frostbite Wings</span><span>Snowdrift Dip</span><span>Black Ice Brownies</span><span>Northern Lights Punch</span><span>Snowbank Cheesecake</span><span>Arctic Garden</span></div></article>
+        <article><div className="idea-symbol">❄</div><h3>Frost the Food — or Just the Name</h3><p>You can add a snowy topping, icy-blue accent, winter garnish or frosty presentation if you feel like it. Or keep the food completely normal and just give it a Frosted Jam name.</p></article>
+        <article><div className="idea-symbol">✦</div><h3>Frosty Name Ideas</h3><div className="name-list"><span>Frostbite Wings</span><span>Snowdrift Dip</span><span>Black Ice Brownies</span><span>Northern Lights Punch</span><span>Snowbank Cheesecake</span><span>Arctic Garden</span></div></article>
         <article><div className="idea-symbol">✧</div><h3>Frost Yourself—If You Want</h3><p>A little silver, icy blue, snowflake jewellery, a wild winter hat, full frosty drama—or absolutely nothing extra.</p></article>
       </div>
-      <div className="word-bank"><b>Try words like</b><span>Snow · Frost · Ice · Blizzard · Polar · Frozen · Snowdrift · Cold Snap · Icicle · Arctic · Winter · North Pole</span></div>
     </section>}
   </main>
 }
