@@ -7,6 +7,87 @@
   .jammy-wrap:before{right:10%!important;opacity:.75}
 }
 
-@media(max-width:850px){.event-strip{grid-template-columns:1fr}.event-strip article{border-right:0;border-bottom:1px solid rgba(160,220,255,.14);padding-left:4px;padding-right:4px}.event-strip article:last-child{border-bottom:0}.jam-glow{opacity:.22}}
-@media(max-width:650px){.jam-hero{min-height:auto;padding-top:44px;padding-bottom:46px}.night-intro{padding-top:48px}.closing-hit{padding-top:48px}.jam-glow{display:none}.event-strip{margin-bottom:38px}.jammy-wrap{overflow:hidden!important}}
+/* Frosty Ideas: show guests that dressing up can range from full frost to almost none. */
+.idea-grid>article:nth-child(3){
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:20px;
+  padding:30px!important;
+}
+.idea-grid>article:nth-child(3) .idea-symbol{display:none}
+.idea-grid>article:nth-child(3) h3{
+  grid-column:1/-1;
+  margin:0!important;
+  font-size:0!important;
+  text-align:center;
+}
+.idea-grid>article:nth-child(3) h3::after{
+  content:'How Frosted Are You Feeling?';
+  display:block;
+  font-family:'Playfair Display',serif;
+  font-size:clamp(2rem,4vw,3.3rem);
+  line-height:1.08;
+  color:#f5fbff;
+}
+.idea-grid>article:nth-child(3)>p{
+  grid-column:1/-1;
+  grid-row:2;
+  margin:0 0 8px!important;
+  font-size:0!important;
+  text-align:center;
+}
+.idea-grid>article:nth-child(3)>p::before{
+  content:'Go all out, keep it simple, or skip the frost entirely. From full icy glamour to just a touch of blue — it all fits the jam.';
+  display:block;
+  max-width:780px;
+  margin:0 auto;
+  font-size:1.06rem;
+  line-height:1.65;
+  color:#c8deed;
+}
+.idea-grid>article:nth-child(3)::before,
+.idea-grid>article:nth-child(3)::after{
+  min-height:520px;
+  display:flex;
+  align-items:flex-end;
+  padding:32px;
+  border:1px solid rgba(183,231,255,.24);
+  border-radius:22px;
+  background-position:center top;
+  background-size:cover;
+  background-repeat:no-repeat;
+  box-shadow:0 20px 48px rgba(0,0,0,.25);
+  white-space:pre-line;
+  font-size:1rem;
+  line-height:1.55;
+  color:#f4fbff;
+  text-shadow:0 2px 12px rgba(0,0,0,.85);
+}
+.idea-grid>article:nth-child(3)::before{
+  grid-column:1;
+  grid-row:3;
+  content:'GO FULL FROST\A Big frosty energy, winter sparkle and over-the-top fun.';
+  background-image:linear-gradient(to top,rgba(2,11,30,.92) 0%,rgba(2,11,30,.12) 48%,transparent 68%),url('/FrostedChristmasJamRickandNancy.png');
+}
+.idea-grid>article:nth-child(3)::after{
+  grid-column:2;
+  grid-row:3;
+  content:'KEEP IT EASY\A Blue, denim, a little tinsel, or just a simple frosty touch.';
+  background-image:linear-gradient(to top,rgba(2,11,30,.92) 0%,rgba(2,11,30,.12) 48%,transparent 68%),url('/ChristmasJamRickandNancy.png');
+}
+.idea-grid>article:nth-child(3)>p::after{
+  content:'NO FROST? NO PROBLEM.  No costume required — just come and have fun.';
+  display:block;
+  margin:24px auto 0;
+  padding-top:20px;
+  max-width:760px;
+  border-top:1px solid rgba(169,235,255,.18);
+  font-size:.98rem;
+  font-weight:700;
+  color:#eaf8ff;
+}
+
+@media(max-width:850px){.event-strip{grid-template-columns:1fr}.event-strip article{border-right:0;border-bottom:1px solid rgba(160,220,255,.14);padding-left:4px;padding-right:4px}.event-strip article:last-child{border-bottom:0}.jam-glow{opacity:.22}.idea-grid>article:nth-child(3){grid-template-columns:1fr}.idea-grid>article:nth-child(3)::before{grid-column:1;grid-row:3}.idea-grid>article:nth-child(3)::after{grid-column:1;grid-row:4}}
+@media(max-width:650px){.jam-hero{min-height:auto;padding-top:44px;padding-bottom:46px}.night-intro{padding-top:48px}.closing-hit{padding-top:48px}.jam-glow{display:none}.event-strip{margin-bottom:38px}.jammy-wrap{overflow:hidden!important}.idea-grid>article:nth-child(3){padding:22px!important}.idea-grid>article:nth-child(3)::before,.idea-grid>article:nth-child(3)::after{min-height:430px;padding:24px;background-position:center top}}
 @media(prefers-reduced-motion:reduce){.jam-glow,.invite-card:before,.jam-hero:before{animation:none!important}}
