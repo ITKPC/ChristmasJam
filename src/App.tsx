@@ -21,6 +21,13 @@ type Contribution = {
   item_name: string
   frosting_description: string | null
 }
+type ContributionDraft = {
+  key: string
+  id: string | null
+  category: string
+  item_name: string
+  frosting_description: string
+}
 type SavedSummary = {
   guestName: string
   plusOneName: string
@@ -73,11 +80,17 @@ export default function App() {
   const [reviewing, setReviewing] = useState(false)
   const [savedSummary, setSavedSummary] = useState<SavedSummary | null>(null)
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null)
+  const [hostContributionDrafts, setHostContributionDrafts] = useState<ContributionDraft[]>([])
+  const [hostContributionMessage, setHostContributionMessage] = useState('')
+  const [hostContributionError, setHostContributionError] = useState('')
+  const [savingContributionKey, setSavingContributionKey] = useState<string | null>(null)
 
   const coming = useMemo(() => guests.filter(g => g.rsvp_status === 'coming').reduce((sum, g) => sum + g.party_size, 0), [guests])
   const maybe = useMemo(() => guests.filter(g => g.rsvp_status === 'maybe').reduce((sum, g) => sum + g.party_size, 0), [guests])
   const guestById = useMemo(() => new Map(guests.map(g => [g.id, g])), [guests])
   const editableGuests = useMemo(() => [...guests].sort((a, b) => a.guest_name.localeCompare(b.guest_name)), [guests])
+  const editingGuest = useMemo(() => guests.find(g => g.id === editingGuestId) || null, [guests, editingGuestId])
+  const editingIsHost = Boolean(editingGuest?.is_host)
 
   const feastContributions = useMemo(() => {
     const merged = [...contributions]
@@ -127,6 +140,10 @@ export default function App() {
     setReviewing(false)
     setSavedSummary(null)
     setSaveError('')
+    setHostContributionDrafts([])
+    setHostContributionMessage('')
+    setHostContributionError('')
+    setSavingContributionKey(null)
   }
 
   function go(next: Page) {
@@ -150,6 +167,18 @@ export default function App() {
     setUnlocked(true)
   }
 
+  function contributionDraftsForGuest(guestId: string) {
+    return contributions
+      .filter(c => c.guest_entry_id === guestId)
+      .map(c => ({
+        key: c.id,
+        id: c.id,
+        category: c.category,
+        item_name: c.item_name,
+        frosting_description: c.frosting_description || '',
+      }))
+  }
+
   function chooseRsvpToEdit(guestId: string) {
     if (!guestId) {
       clearRsvpForm()
@@ -167,13 +196,123 @@ export default function App() {
     setName(guest.guest_name)
     setPlusOne(guest.plus_one_name || '')
     setRsvp(guest.rsvp_status)
-    setCategory(guest.food_category && isFoodGroup(guest.food_category) ? guest.food_category : '')
-    setBringing(guest.bringing_item || '')
-    setFrostedName(guest.frosting_description || '')
+    setCategory(guest.is_host ? '' : guest.food_category && isFoodGroup(guest.food_category) ? guest.food_category : '')
+    setBringing(guest.is_host ? '' : guest.bringing_item || '')
+    setFrostedName(guest.is_host ? '' : guest.frosting_description || '')
+    setHostContributionDrafts(guest.is_host ? contributionDraftsForGuest(guest.id) : [])
+    setHostContributionMessage('')
+    setHostContributionError('')
     setReviewing(false)
     setSavedSummary(null)
     setSaveError('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function updateHostContributionDraft(index: number, patch: Partial<ContributionDraft>) {
+    setHostContributionDrafts(current => current.map((draft, i) => i === index ? { ...draft, ...patch } : draft))
+    setHostContributionMessage('')
+    setHostContributionError('')
+  }
+
+  function addHostContribution() {
+    setHostContributionDrafts(current => [...current, {
+      key: `new-${Date.now()}`,
+      id: null,
+      category: '',
+      item_name: '',
+      frosting_description: '',
+    }])
+    setHostContributionMessage('')
+    setHostContributionError('')
+  }
+
+  async function saveHostContribution(index: number) {
+    const draft = hostContributionDrafts[index]
+    if (!draft || !editingGuestId || !editingIsHost) return
+
+    const cleanItem = draft.item_name.trim()
+    const cleanFrosted = draft.frosting_description.trim()
+    if (!isFoodGroup(draft.category)) {
+      setHostContributionError('Choose a category for this contribution.')
+      return
+    }
+    if (!cleanItem) {
+      setHostContributionError('Add the real food name before saving this contribution.')
+      return
+    }
+    if (cleanItem.length > 200) {
+      setHostContributionError('Please keep the food name to 200 characters or fewer.')
+      return
+    }
+    if (cleanFrosted.length > 120) {
+      setHostContributionError('Please keep the Frosted Jam name to 120 characters or fewer.')
+      return
+    }
+
+    setHostContributionError('')
+    setHostContributionMessage('')
+    setSavingContributionKey(draft.key)
+
+    const { data, error } = await supabase.rpc('save_party_contribution', {
+      p_contribution_id: draft.id,
+      p_guest_entry_id: editingGuestId,
+      p_category: draft.category,
+      p_item_name: cleanItem,
+      p_frosted_name: cleanFrosted || null,
+    })
+
+    if (error || !data?.length) {
+      setHostContributionError('We could not save that contribution. Nothing was changed.')
+      setSavingContributionKey(null)
+      return
+    }
+
+    const saved = data[0] as Contribution
+    setHostContributionDrafts(current => current.map((item, i) => i === index ? {
+      key: saved.id,
+      id: saved.id,
+      category: saved.category,
+      item_name: saved.item_name,
+      frosting_description: saved.frosting_description || '',
+    } : item))
+    setHostContributionMessage(`Saved ${saved.item_name}.`)
+    setSavingContributionKey(null)
+    await loadParty()
+  }
+
+  async function deleteHostContribution(index: number) {
+    const draft = hostContributionDrafts[index]
+    if (!draft || !editingGuestId || !editingIsHost) return
+
+    if (!draft.id) {
+      setHostContributionDrafts(current => current.filter((_, i) => i !== index))
+      setHostContributionMessage('Unsaved contribution removed.')
+      setHostContributionError('')
+      return
+    }
+
+    const itemLabel = draft.item_name.trim() || 'this contribution'
+    if (!window.confirm(`Delete ${itemLabel}? This will remove it from the Frosted Feast.`)) return
+
+    setHostContributionError('')
+    setHostContributionMessage('')
+    setSavingContributionKey(draft.key)
+
+    const { data, error } = await supabase.rpc('delete_party_contribution', {
+      p_contribution_id: draft.id,
+      p_guest_entry_id: editingGuestId,
+    })
+
+    if (error || data !== true) {
+      setHostContributionError('We could not delete that contribution. Nothing was changed.')
+      setSavingContributionKey(null)
+      return
+    }
+
+    setHostContributionDrafts(current => current.filter((_, i) => i !== index))
+    setHostContributionMessage(`${itemLabel} was removed.`)
+    setSavingContributionKey(null)
+    await loadParty()
   }
 
   function validateRsvp() {
@@ -186,7 +325,7 @@ export default function App() {
     if (cleanName.length > 80) return 'Please keep your name to 80 characters or fewer.'
     if (cleanPlusOne.length > 80) return 'Please keep your guest name to 80 characters or fewer.'
 
-    if (rsvp !== 'declined') {
+    if (rsvp !== 'declined' && !editingIsHost) {
       if (category && !isFoodGroup(category)) return 'Please choose a valid food category.'
       if (cleanFood && !category) return "You told us what you're bringing - just choose which food category it belongs in."
       if (category && !cleanFood) return "You've chosen a food category - now tell us what you're bringing, or clear the category if you're deciding later."
@@ -230,9 +369,9 @@ export default function App() {
 
     const cleanName = name.trim()
     const cleanPlusOne = plusOne.trim()
-    const cleanFood = rsvp === 'declined' ? '' : bringing.trim()
-    const cleanFrostedName = rsvp === 'declined' ? '' : frostedName.trim()
-    const cleanCategory = rsvp === 'declined' ? '' : category
+    const cleanFood = editingIsHost || rsvp === 'declined' ? '' : bringing.trim()
+    const cleanFrostedName = editingIsHost || rsvp === 'declined' ? '' : frostedName.trim()
+    const cleanCategory = editingIsHost || rsvp === 'declined' ? '' : category
     const partySize = cleanPlusOne ? 2 : 1
 
     setSaveError('')
@@ -272,6 +411,9 @@ export default function App() {
     setCategory('')
     setBringing('')
     setFrostedName('')
+    setHostContributionDrafts([])
+    setHostContributionMessage('')
+    setHostContributionError('')
     await loadParty()
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -279,21 +421,60 @@ export default function App() {
   const rsvpFields = <form onSubmit={reviewRsvp} className="rsvp-form">
     <div className="two"><label>Your name<input value={name} onChange={e => setName(e.target.value)} required maxLength={80} autoComplete="name" /></label><label>Coming with someone?<input value={plusOne} onChange={e => setPlusOne(e.target.value)} placeholder="Optional" maxLength={80} /></label></div>
     <fieldset><legend>Are you coming?</legend><div className="choices"><button type="button" className={rsvp === 'coming' ? 'active' : ''} onClick={() => setRsvp('coming')}>Absolutely</button><button type="button" className={rsvp === 'maybe' ? 'active' : ''} onClick={() => setRsvp('maybe')}>Maybe</button><button type="button" className={rsvp === 'declined' ? 'active' : ''} onClick={() => setRsvp('declined')}>Can't Make It</button></div></fieldset>
-    {rsvp !== 'declined' && <div className="food-fields">
+    {rsvp !== 'declined' && !editingIsHost && <div className="food-fields">
       <div className="two"><label>What kind of contribution?<select value={category} onChange={e => setCategory(e.target.value)}><option value="">Choose if you know</option>{FOOD_GROUPS.map(group => <option key={group}>{group}</option>)}</select></label><label>What are you actually bringing?<input value={bringing} onChange={e => setBringing(e.target.value)} placeholder="e.g. Spinach Dip" maxLength={200} /></label></div>
       <label>Frosted Jam name <small>Optional</small><input value={frostedName} onChange={e => setFrostedName(e.target.value)} placeholder="e.g. Snowdrift Spinach Dip" maxLength={120} /><span className="field-help">Keep the real food name above. This is just the fun party name.</span></label>
     </div>}
-    {rsvp === 'declined' && editingGuestId && <p className="review-note">Changing this RSVP to Can't Make It will also remove its food from the Frosted Feast.</p>}
+    {editingIsHost && <p className="review-note">Your food is managed separately below so you can keep, change, add or delete multiple contributions.</p>}
+    {rsvp === 'declined' && editingGuestId && !editingIsHost && <p className="review-note">Changing this RSVP to Can't Make It will also remove its food from the Frosted Feast.</p>}
     {saveError && <p className="error" role="alert">{saveError}</p>}
     <button className="primary" disabled={saving}>{saving ? 'Please wait...' : editingGuestId ? 'Review My Changes' : 'Review My RSVP'}</button>
   </form>
+
+  const hostContributionEditor = editingIsHost && editingGuestId ? <section className="host-contribution-editor" aria-labelledby="host-contributions-title">
+    <div className="host-contribution-heading">
+      <p className="kicker">Your Contributions</p>
+      <h3 id="host-contributions-title">What Nancy & Rick Are Bringing</h3>
+      <p>Everything already on the Frosted Feast is listed here. Change the category, real food name or Frosted Jam name, add another item, or remove anything you are no longer bringing.</p>
+    </div>
+
+    {hostContributionMessage && <p className="host-contribution-message" role="status">{hostContributionMessage}</p>}
+    {hostContributionError && <p className="error host-contribution-error" role="alert">{hostContributionError}</p>}
+
+    {hostContributionDrafts.length ? <div className="host-contribution-list">
+      {hostContributionDrafts.map((draft, index) => <article className="host-contribution-card" key={draft.key}>
+        <div className="host-contribution-number">Contribution {index + 1}</div>
+        <div className="two">
+          <label>Category
+            <select value={draft.category} onChange={e => updateHostContributionDraft(index, { category: e.target.value })}>
+              <option value="">Choose a category</option>
+              {FOOD_GROUPS.map(group => <option key={group}>{group}</option>)}
+            </select>
+          </label>
+          <label>What are you actually bringing?
+            <input value={draft.item_name} onChange={e => updateHostContributionDraft(index, { item_name: e.target.value })} maxLength={200} placeholder="e.g. Chicken Meatballs" />
+          </label>
+        </div>
+        <label>Frosted Jam name <small>Optional</small>
+          <input value={draft.frosting_description} onChange={e => updateHostContributionDraft(index, { frosting_description: e.target.value })} maxLength={120} placeholder="e.g. Frosted Blueberry Kiss" />
+          <span className="field-help">This is the fun name that gets the spotlight on the Frosted Feast.</span>
+        </label>
+        <div className="host-contribution-actions">
+          <button type="button" className="primary" disabled={savingContributionKey === draft.key} onClick={() => saveHostContribution(index)}>{savingContributionKey === draft.key ? 'Saving...' : draft.id ? 'Save Changes' : 'Add to Frosted Feast'}</button>
+          <button type="button" className="danger-button" disabled={savingContributionKey === draft.key} onClick={() => deleteHostContribution(index)}>{draft.id ? 'Delete Contribution' : 'Remove'}</button>
+        </div>
+      </article>)}
+    </div> : <p className="host-contribution-empty">Nothing is listed yet. Add the first contribution whenever you are ready.</p>}
+
+    <button type="button" className="secondary host-add-contribution" onClick={addHostContribution}>+ Add Another Contribution</button>
+  </section> : null
 
   const reviewPanel = <>
     <div className="page-heading"><p className="kicker">One Quick Check</p><h2>Before We Save It...</h2><p>Make sure this is exactly what you meant to send us.</p></div>
     <section className="rsvp-review">
       <div className="review-line"><span>Guest{plusOne.trim() ? 's' : ''}</span><b>{name.trim()}{plusOne.trim() ? ` & ${plusOne.trim()}` : ''}</b></div>
       <div className="review-line"><span>RSVP</span><b>{rsvp === 'coming' ? 'Coming' : rsvp === 'maybe' ? 'Maybe' : "Can't Make It"}</b></div>
-      {rsvp !== 'declined' && bringing.trim() && <>
+      {!editingIsHost && rsvp !== 'declined' && bringing.trim() && <>
         <div className="review-line"><span>Category</span><b>{category}</b></div>
         <div className="review-line"><span>You're bringing</span><b>{bringing.trim()}</b></div>
         {frostedName.trim() && <div className="review-line frosted"><span>Frosted Jam name</span><b>{frostedName.trim()}</b></div>}
@@ -304,7 +485,8 @@ export default function App() {
           <button type="button" className="secondary" onClick={editRsvpForm}>Add a Frosted Jam Name</button>
         </div>}
       </>}
-      {rsvp !== 'declined' && !bringing.trim() && <p className="review-note">No food choice yet - that's completely fine. You can decide later.</p>}
+      {!editingIsHost && rsvp !== 'declined' && !bringing.trim() && <p className="review-note">No food choice yet - that's completely fine. You can decide later.</p>}
+      {editingIsHost && <p className="review-note">This saves the RSVP only. Your existing contributions stay exactly as they are and can be managed separately on the edit screen.</p>}
       {saveError && <p className="error" role="alert">{saveError}</p>}
       <div className="review-actions"><button type="button" className="secondary" onClick={editRsvpForm} disabled={saving}>Make a Change</button><button type="button" className="primary" onClick={saveConfirmedRsvp} disabled={saving}>{saving ? 'Saving...' : editingGuestId ? 'Looks Good - Update This RSVP' : 'Looks Good - Save My RSVP'}</button></div>
     </section>
@@ -413,9 +595,10 @@ export default function App() {
           <div className="review-actions"><button className="primary" type="button" onClick={clearRsvpForm}>Edit Another RSVP</button><button className="secondary" type="button" onClick={() => go('coming')}>See Who's Coming</button></div>
         </section>
       </> : reviewing ? reviewPanel : editingGuestId ? <>
-        <div className="page-heading"><p className="kicker">Edit My RSVP</p><h2>{name}</h2><p>Change anything you need — whether you're coming, your guest, your food or your Frosted Jam name.</p></div>
+        <div className="page-heading"><p className="kicker">Edit My RSVP</p><h2>{name}</h2><p>{editingIsHost ? 'Change your RSVP here, then manage every food contribution below.' : 'Change anything you need — whether you\'re coming, your guest, your food or your Frosted Jam name.'}</p></div>
         <div className="review-actions" style={{ justifyContent: 'flex-start', marginTop: 0, marginBottom: 22 }}><button type="button" className="secondary" onClick={clearRsvpForm}>Choose Someone Else</button></div>
         {rsvpFields}
+        {hostContributionEditor}
       </> : <>
         <div className="page-heading"><p className="kicker">Edit My RSVP</p><h2>Who Are You?</h2><p>Pick your name and we'll show you exactly what you entered.</p></div>
         {loadError && <p className="error" role="alert">{loadError}</p>}
