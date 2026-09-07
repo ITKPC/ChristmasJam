@@ -38,7 +38,7 @@ create policy "party guests can view entries" on public.guest_entries for select
 create policy "party guests can view contributions" on public.contributions for select to anon, authenticated using (true);
 
 -- This is intentionally a trusted-party edit model. Anyone who has entered the party app
--- can choose a non-host RSVP from the guest picker and update it. Host rows cannot be edited.
+-- can choose an RSVP, including Nancy or Rick, and update it. Existing host status is preserved.
 create or replace function public.save_party_rsvp(
   p_guest_id uuid,
   p_guest_name text,
@@ -99,9 +99,9 @@ begin
         bringing_item = v_item,
         frosting_description = v_frosted,
         updated_at = now()
-    where g.id = p_guest_id and g.is_host = false
+    where g.id = p_guest_id
     returning g.id into v_id;
-    if v_id is null then raise exception 'guest RSVP not found or cannot be edited'; end if;
+    if v_id is null then raise exception 'RSVP not found'; end if;
   end if;
 
   delete from public.contributions c where c.guest_entry_id = v_id;
