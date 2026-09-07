@@ -37,8 +37,8 @@ drop policy if exists "party guests can view contributions" on public.contributi
 create policy "party guests can view entries" on public.guest_entries for select to anon, authenticated using (true);
 create policy "party guests can view contributions" on public.contributions for select to anon, authenticated using (true);
 
--- This is intentionally a trusted-party edit model. Anyone who has entered the party app
--- can choose an RSVP, including Nancy or Rick, and update it. Existing host status is preserved.
+-- Trusted-party edit model. Host status is preserved, and host contributions are managed separately
+-- so Nancy & Rick can keep multiple dishes without an RSVP update deleting them.
 create or replace function public.save_party_rsvp(
   p_guest_id uuid,
   p_guest_name text,
@@ -69,6 +69,7 @@ declare
   v_category text;
   v_item text;
   v_frosted text;
+  v_is_host boolean := false;
 begin
   if p_guest_name is null or char_length(trim(p_guest_name)) < 1 or char_length(trim(p_guest_name)) > 80 then raise exception 'invalid guest name'; end if;
   if p_plus_one_name is not null and char_length(trim(p_plus_one_name)) > 80 then raise exception 'invalid guest name'; end if;
@@ -90,24 +91,28 @@ begin
     values (trim(p_guest_name), nullif(trim(coalesce(p_plus_one_name, '')), ''), v_party_size, false, p_rsvp_status, v_category, v_item, v_frosted)
     returning public.guest_entries.id into v_id;
   else
+    select g.is_host into v_is_host from public.guest_entries g where g.id = p_guest_id;
+    if not found then raise exception 'RSVP not found'; end if;
+
     update public.guest_entries g
     set guest_name = trim(p_guest_name),
         plus_one_name = nullif(trim(coalesce(p_plus_one_name, '')), ''),
         party_size = v_party_size,
         rsvp_status = p_rsvp_status,
-        food_category = v_category,
-        bringing_item = v_item,
-        frosting_description = v_frosted,
+        food_category = case when v_is_host then g.food_category else v_category end,
+        bringing_item = case when v_is_host then g.bringing_item else v_item end,
+        frosting_description = case when v_is_host then g.frosting_description else v_frosted end,
         updated_at = now()
     where g.id = p_guest_id
     returning g.id into v_id;
-    if v_id is null then raise exception 'RSVP not found'; end if;
   end if;
 
-  delete from public.contributions c where c.guest_entry_id = v_id;
-  if v_category is not null and v_item is not null then
-    insert into public.contributions (guest_entry_id, category, item_name, frosting_description)
-    values (v_id, v_category, v_item, v_frosted);
+  if not v_is_host then
+    delete from public.contributions c where c.guest_entry_id = v_id;
+    if v_category is not null and v_item is not null then
+      insert into public.contributions (guest_entry_id, category, item_name, frosting_description)
+      values (v_id, v_category, v_item, v_frosted);
+    end if;
   end if;
 
   return query
@@ -120,3 +125,85 @@ $$;
 
 revoke all on function public.save_party_rsvp(uuid,text,text,text,text,text,text) from public;
 grant execute on function public.save_party_rsvp(uuid,text,text,text,text,text,text) to anon, authenticated;
+
+create or replace function public.save_party_contribution(
+  p_contribution_id uuid,
+  p_guest_entry_id uuid,
+  p_category text,
+  p_item_name text,
+  p_frosted_name text
+)
+returns table (
+  id uuid,
+  guest_entry_id uuid,
+  category text,
+  item_name text,
+  frosting_description text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+  v_item text;
+  v_frosted text;
+begin
+  if p_guest_entry_id is null or not exists (
+    select 1 from public.guest_entries g where g.id = p_guest_entry_id and g.is_host = true
+  ) then raise exception 'host entry not found'; end if;
+  if p_category not in ('Appetizer','Main','Side','Dessert','Other') then raise exception 'invalid food category'; end if;
+
+  v_item := nullif(trim(coalesce(p_item_name, '')), '');
+  if v_item is null then raise exception 'food name required'; end if;
+  if char_length(v_item) > 200 then raise exception 'food name too long'; end if;
+
+  v_frosted := nullif(trim(coalesce(p_frosted_name, '')), '');
+  if v_frosted is not null and char_length(v_frosted) > 120 then raise exception 'Frosted Jam name too long'; end if;
+
+  if p_contribution_id is null then
+    insert into public.contributions (guest_entry_id, category, item_name, frosting_description)
+    values (p_guest_entry_id, p_category, v_item, v_frosted)
+    returning public.contributions.id into v_id;
+  else
+    update public.contributions c
+    set category = p_category,
+        item_name = v_item,
+        frosting_description = v_frosted
+    where c.id = p_contribution_id and c.guest_entry_id = p_guest_entry_id
+    returning c.id into v_id;
+    if v_id is null then raise exception 'contribution not found'; end if;
+  end if;
+
+  return query
+  select c.id, c.guest_entry_id, c.category, c.item_name, c.frosting_description
+  from public.contributions c
+  where c.id = v_id;
+end;
+$$;
+
+revoke all on function public.save_party_contribution(uuid,uuid,text,text,text) from public;
+grant execute on function public.save_party_contribution(uuid,uuid,text,text,text) to anon, authenticated;
+
+create or replace function public.delete_party_contribution(
+  p_contribution_id uuid,
+  p_guest_entry_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_guest_entry_id is null or not exists (
+    select 1 from public.guest_entries g where g.id = p_guest_entry_id and g.is_host = true
+  ) then raise exception 'host entry not found'; end if;
+
+  delete from public.contributions c
+  where c.id = p_contribution_id and c.guest_entry_id = p_guest_entry_id;
+  return found;
+end;
+$$;
+
+revoke all on function public.delete_party_contribution(uuid,uuid) from public;
+grant execute on function public.delete_party_contribution(uuid,uuid) to anon, authenticated;
