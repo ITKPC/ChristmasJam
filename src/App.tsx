@@ -77,7 +77,7 @@ export default function App() {
   const coming = useMemo(() => guests.filter(g => g.rsvp_status === 'coming').reduce((sum, g) => sum + g.party_size, 0), [guests])
   const maybe = useMemo(() => guests.filter(g => g.rsvp_status === 'maybe').reduce((sum, g) => sum + g.party_size, 0), [guests])
   const guestById = useMemo(() => new Map(guests.map(g => [g.id, g])), [guests])
-  const editableGuests = useMemo(() => guests.filter(g => !g.is_host).sort((a, b) => a.guest_name.localeCompare(b.guest_name)), [guests])
+  const editableGuests = useMemo(() => [...guests].sort((a, b) => a.guest_name.localeCompare(b.guest_name)), [guests])
 
   const feastContributions = useMemo(() => {
     const merged = [...contributions]
@@ -156,7 +156,7 @@ export default function App() {
       return
     }
 
-    const guest = guests.find(g => g.id === guestId && !g.is_host)
+    const guest = guests.find(g => g.id === guestId)
     if (!guest) {
       clearRsvpForm()
       setSaveError('We could not find that RSVP. Please refresh and try again.')
@@ -423,7 +423,7 @@ export default function App() {
           <label>Your name
             <select value="" onChange={e => chooseRsvpToEdit(e.target.value)}>
               <option value="">Choose your name</option>
-              {editableGuests.map(g => <option key={g.id} value={g.id}>{g.guest_name}{g.plus_one_name ? ` & ${g.plus_one_name}` : ''}</option>)}
+              {editableGuests.map(g => <option key={g.id} value={g.id}>{g.guest_name}{g.is_host ? ' · Host' : ''}{g.plus_one_name ? ` & ${g.plus_one_name}` : ''}</option>)}
             </select>
           </label>
         </section>}
