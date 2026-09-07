@@ -19,10 +19,39 @@
 .edit-picker label{display:grid;gap:8px;color:#edf9ff;font-weight:800}
 .edit-picker select{width:100%;min-height:48px;padding:0 14px;border:1px solid rgba(159,218,250,.28);border-radius:12px;background:#071a38;color:#f5fbff;font:inherit}
 .edit-picker p{margin:0;color:#9fc0d5;font-size:.9rem;line-height:1.5}
+
+.host-contribution-editor{margin-top:30px;padding:28px;border:1px solid rgba(164,225,255,.2);border-radius:24px;background:linear-gradient(145deg,rgba(8,36,76,.68),rgba(3,18,40,.78));box-shadow:0 22px 55px rgba(0,0,0,.16)}
+.host-contribution-heading{max-width:700px;margin-bottom:22px}
+.host-contribution-heading h3{margin:0;font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3vw,2.5rem);line-height:1.08;color:#f5fbff}
+.host-contribution-heading>p:last-child{margin:10px 0 0;color:#b8d3e6;line-height:1.6}
+.host-contribution-list{display:grid;gap:18px}
+.host-contribution-card{display:grid;gap:18px;padding:22px;border:1px solid rgba(164,225,255,.16);border-radius:18px;background:rgba(5,25,53,.62)}
+.host-contribution-card label{display:grid;gap:8px}
+.host-contribution-card input,.host-contribution-card select{margin-top:0}
+.host-contribution-number{font-size:.76rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#99dff8}
+.host-contribution-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.host-contribution-actions button{min-width:170px}
+.danger-button{border:1px solid rgba(255,170,184,.34);border-radius:999px;padding:13px 20px;background:rgba(111,22,39,.2);color:#ffdce2;font-weight:800}
+.danger-button:hover{background:rgba(139,28,50,.34)}
+.host-add-contribution{margin-top:20px}
+.host-contribution-message,.host-contribution-error,.host-contribution-empty{margin:0 0 18px;padding:13px 15px;border-radius:14px}
+.host-contribution-message{background:rgba(111,211,177,.09);border:1px solid rgba(137,235,202,.2);color:#dffdf3}
+.host-contribution-error{background:rgba(137,28,51,.24);border:1px solid rgba(255,172,188,.2)}
+.host-contribution-empty{background:rgba(137,217,255,.06);color:#bad7e8}
+
+@media(max-width:760px){
+  .host-contribution-editor{padding:22px}
+  .host-contribution-card{padding:18px}
+}
+
 @media(max-width:650px){
   .rsvp-review,.rsvp-success{padding:20px}
   .review-line{grid-template-columns:1fr;gap:4px;padding:14px 0}
   .review-actions{display:grid;grid-template-columns:1fr;justify-content:stretch}
   .review-actions button{width:100%;min-width:0}
   .edit-picker{padding:17px}
+  .host-contribution-editor{margin-top:22px;padding:18px;border-radius:20px}
+  .host-contribution-card{padding:16px;border-radius:16px}
+  .host-contribution-actions{display:grid;grid-template-columns:1fr}
+  .host-contribution-actions button,.host-add-contribution{width:100%;min-width:0}
 }
